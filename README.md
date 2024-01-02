@@ -17,6 +17,11 @@
     make run
     ```
 
+5. Unit test
+    ```shell
+    make test
+    ```
+
 ### Linting
 
 ```shell
