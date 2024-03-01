@@ -2,8 +2,6 @@ package main
 
 import (
 	"fmt"
-	sentrygo "github.com/getsentry/sentry-go"
-	_ "github.com/lib/pq"
 	"hexagon/adapters/httpserver"
 	"hexagon/adapters/postgrestore"
 	"hexagon/pkg/config"
@@ -11,6 +9,9 @@ import (
 	"hexagon/pkg/sentry"
 	"log"
 	"net/http"
+
+	sentrygo "github.com/getsentry/sentry-go"
+	_ "github.com/lib/pq"
 )
 
 func main() {
@@ -42,13 +43,12 @@ func main() {
 
 	//db, err := inmemstore.NewConnection()
 
-	server, err := httpserver.New()
+	server, err := httpserver.New(httpserver.WithConfig(cfg))
 	if err != nil {
 		applog.Fatal(err)
 	}
 
 	server.Logger = applog
-	server.Config = cfg
 	server.BookStore = postgrestore.NewBookStore(db)
 	//server.BookStore = inmemstore.NewBookStore(db)
 

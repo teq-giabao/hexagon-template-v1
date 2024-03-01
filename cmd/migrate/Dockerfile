@@ -7,7 +7,7 @@ COPY go.mod go.sum ./
 
 RUN go mod download
 
-COPY ../httpserver .
+COPY . .
 
 RUN go mod verify
 

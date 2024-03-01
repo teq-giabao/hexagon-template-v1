@@ -1,19 +1,18 @@
 package httpserver
 
 import (
-	sentryecho "github.com/getsentry/sentry-go/echo"
-	"github.com/labstack/echo/v4"
-	"github.com/labstack/echo/v4/middleware"
-	"go.uber.org/zap"
 	"hexagon/domain/book"
 	"hexagon/pkg/config"
 	"hexagon/pkg/logger"
 	"hexagon/pkg/sentry"
 	"net/http"
 	"strings"
-)
 
-type Options func(s *Server) error
+	sentryecho "github.com/getsentry/sentry-go/echo"
+	"github.com/labstack/echo/v4"
+	"github.com/labstack/echo/v4/middleware"
+	"go.uber.org/zap"
+)
 
 type Server struct {
 	router *echo.Echo
