@@ -15,7 +15,7 @@ import (
 )
 
 type Server struct {
-	router *echo.Echo
+	Router *echo.Echo
 	Config *config.Config
 	Logger *zap.SugaredLogger
 
@@ -25,7 +25,7 @@ type Server struct {
 
 func New(options ...Options) (*Server, error) {
 	s := Server{
-		router: echo.New(),
+		Router: echo.New(),
 		Config: config.Empty,
 		Logger: logger.NOOPLogger,
 	}
@@ -38,30 +38,30 @@ func New(options ...Options) (*Server, error) {
 
 	s.RegisterGlobalMiddlewares()
 
-	s.RegisterHealthCheck(s.router.Group(""))
-	s.RegisterBookRoutes(s.router.Group("/api/books"))
+	s.RegisterHealthCheck(s.Router.Group(""))
+	s.RegisterBookRoutes(s.Router.Group("/api/books"))
 
 	return &s, nil
 }
 
 func (s *Server) RegisterGlobalMiddlewares() {
-	s.router.Use(middleware.Recover())
-	s.router.Use(middleware.Secure())
-	s.router.Use(middleware.RequestID())
-	s.router.Use(middleware.Gzip())
-	s.router.Use(sentryecho.New(sentryecho.Options{Repanic: true}))
+	s.Router.Use(middleware.Recover())
+	s.Router.Use(middleware.Secure())
+	s.Router.Use(middleware.RequestID())
+	s.Router.Use(middleware.Gzip())
+	s.Router.Use(sentryecho.New(sentryecho.Options{Repanic: true}))
 
 	// CORS
 	if s.Config.AllowOrigins != "" {
 		aos := strings.Split(s.Config.AllowOrigins, ",")
-		s.router.Use(middleware.CORSWithConfig(middleware.CORSConfig{
+		s.Router.Use(middleware.CORSWithConfig(middleware.CORSConfig{
 			AllowOrigins: aos,
 		}))
 	}
 }
 
 func (s *Server) ServeHTTP(w http.ResponseWriter, r *http.Request) {
-	s.router.ServeHTTP(w, r)
+	s.Router.ServeHTTP(w, r)
 }
 
 func (s *Server) RegisterHealthCheck(router *echo.Group) {

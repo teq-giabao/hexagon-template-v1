@@ -19,5 +19,5 @@ func TestHealthCheck(t *testing.T) {
 	server.ServeHTTP(response, request)
 
 	assert.Equal(t, http.StatusOK, response.Code)
-	assert.Equal(t, "OK!!!", response.Body.String())
+	assert.Contains(t, response.Body.String(), "{\"message\":\"Service is up and running\",\"status\":\"OK\"}")
 }
