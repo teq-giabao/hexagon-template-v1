@@ -66,7 +66,10 @@ func (s *Server) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 
 func (s *Server) RegisterHealthCheck(router *echo.Group) {
 	router.GET("/healthz", func(c echo.Context) error {
-		return c.String(http.StatusOK, "OK!!!")
+		return c.JSON(http.StatusOK, map[string]string{
+			"status":  http.StatusText(http.StatusOK),
+			"message": "Service is up and running",
+		})
 	})
 }
 
