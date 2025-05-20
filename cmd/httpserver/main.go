@@ -5,7 +5,7 @@ import (
 	"hexagon/adapters/httpserver"
 	"hexagon/adapters/postgrestore"
 	"hexagon/pkg/config"
-	"hexagon/pkg/logger"
+	"hexagon/pkg/logging"
 	"hexagon/pkg/sentry"
 	"log"
 	"net/http"
@@ -15,15 +15,14 @@ import (
 )
 
 func main() {
-	applog, err := logger.NewAppLogger()
+	logger, err := logging.NewLogger()
 	if err != nil {
 		log.Fatalf("cannot load config: %v\n", err)
 	}
-	defer logger.Sync(applog)
 
 	cfg, err := config.LoadConfig()
 	if err != nil {
-		applog.Fatal(err)
+		logger.Fatal(err)
 	}
 
 	err = sentrygo.Init(sentrygo.ClientOptions{
@@ -32,27 +31,27 @@ func main() {
 		AttachStacktrace: true,
 	})
 	if err != nil {
-		applog.Fatalf("cannot init sentry: %v", err)
+		logger.Fatalf("cannot init sentry: %v", err)
 	}
 	defer sentrygo.Flush(sentry.FlushTime)
 
 	db, err := postgrestore.NewConnection(postgrestore.ParseFromConfig(cfg))
 	if err != nil {
-		applog.Fatal(err)
+		logger.Fatal(err)
 	}
 
 	//db, err := inmemstore.NewConnection()
 
 	server, err := httpserver.New(httpserver.WithConfig(cfg))
 	if err != nil {
-		applog.Fatal(err)
+		logger.Fatal(err)
 	}
 
-	server.Logger = applog
+	server.Logger = logger
 	server.BookStore = postgrestore.NewBookStore(db)
 	//server.BookStore = inmemstore.NewBookStore(db)
 
 	addr := fmt.Sprintf(":%d", cfg.Port)
-	applog.Info("server started!")
-	applog.Fatal(http.ListenAndServe(addr, server))
+	logger.Info("server started!")
+	logger.Fatal(http.ListenAndServe(addr, server))
 }

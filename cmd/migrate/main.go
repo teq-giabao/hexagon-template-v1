@@ -1,25 +1,25 @@
 package main
 
 import (
-	_ "github.com/lib/pq"
-	migrate "github.com/rubenv/sql-migrate"
 	"hexagon/adapters/postgrestore"
 	"hexagon/pkg/config"
-	"hexagon/pkg/logger"
+	"hexagon/pkg/logging"
 	"log"
 	"strconv"
+
+	_ "github.com/lib/pq"
+	migrate "github.com/rubenv/sql-migrate"
 )
 
 func main() {
-	applogger, err := logger.NewAppLogger()
-	defer logger.Sync(applogger)
+	logger, err := logging.NewLogger()
 	if err != nil {
 		log.Fatalf("cannot load config: %v\n", err)
 	}
 
 	cfg, err := config.LoadConfig()
 	if err != nil {
-		applogger.Fatalf("cannot load config: %v\n", err)
+		logger.Fatalf("cannot load config: %v\n", err)
 	}
 
 	db, err := postgrestore.NewConnection(postgrestore.Options{
@@ -31,7 +31,7 @@ func main() {
 		SSLMode:  false,
 	})
 	if err != nil {
-		applogger.Fatalf("cannot connecting to db: %v\n", err)
+		logger.Fatalf("cannot connecting to db: %v\n", err)
 	}
 
 	migrations := &migrate.FileMigrationSource{
@@ -40,8 +40,8 @@ func main() {
 
 	total, err := migrate.Exec(db.DB, "postgres", migrations, migrate.Up)
 	if err != nil {
-		applogger.Fatalf("cannot execute migration: %v\n", err)
+		logger.Fatalf("cannot execute migration: %v\n", err)
 	}
 
-	applogger.Infof("applied %d migrations\n", total)
+	logger.Infof("applied %d migrations\n", total)
 }

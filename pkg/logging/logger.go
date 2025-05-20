@@ -1,4 +1,4 @@
-package logger
+package logging
 
 import (
 	"go.uber.org/zap"
@@ -8,7 +8,7 @@ import (
 // NOOPLogger use for unit testing
 var NOOPLogger = zap.NewNop().Sugar()
 
-func NewAppLogger() (*zap.SugaredLogger, error) {
+func NewLogger() (*zap.SugaredLogger, error) {
 	cfg := zap.NewProductionConfig()
 	cfg.EncoderConfig.TimeKey = "timestamp"
 	cfg.EncoderConfig.EncodeTime = zapcore.RFC3339TimeEncoder

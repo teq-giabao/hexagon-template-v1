@@ -3,7 +3,7 @@ package httpserver
 import (
 	"hexagon/domain/book"
 	"hexagon/pkg/config"
-	"hexagon/pkg/logger"
+	"hexagon/pkg/logging"
 	"hexagon/pkg/sentry"
 	"net/http"
 	"strings"
@@ -27,7 +27,7 @@ func New(options ...Options) (*Server, error) {
 	s := Server{
 		Router: echo.New(),
 		Config: config.Empty,
-		Logger: logger.NOOPLogger,
+		Logger: logging.NOOPLogger,
 	}
 
 	for _, fn := range options {
