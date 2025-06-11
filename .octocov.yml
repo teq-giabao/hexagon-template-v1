@@ -1,5 +1,8 @@
 coverage:
   if: true
+  acceptable: 20%
+  badge:
+    path: docs/coverage.svg
 codeToTestRatio:
   code:
     - "**/*.go"
