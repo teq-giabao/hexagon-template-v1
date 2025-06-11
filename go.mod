@@ -1,6 +1,6 @@
 module hexagon
 
-go 1.21.0
+go 1.24.0
 
 require (
 	github.com/dgraph-io/badger/v4 v4.2.0
