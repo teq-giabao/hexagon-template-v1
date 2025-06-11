@@ -1,0 +1,55 @@
+linters-settings:
+  gocyclo:
+    min-complexity: 15
+  dupl:
+    threshold: 100
+  goconst:
+    min-len: 3
+    min-occurrences: 3
+  goimports:
+    local-prefixes: github.com/your-org
+
+linters:
+  disable-all: true
+  enable:
+    - errcheck
+    - gosimple
+    - govet
+    - ineffassign
+    - staticcheck
+    - typecheck
+    - unused
+    - tagliatelle
+    - nestif
+    - gocyclo
+    - gocognit
+    - funlen
+
+run:
+  timeout: 5m
+
+issues:
+  max-same-issues: 3
+  max-issues-per-linter: 50
+
+  exclude-rules:
+    - path: _test\.go
+      linters:
+        - dupl
+        - gosec
+        - goconst
+
+    - path: _test\.go
+      text: "weak cryptographic primitive"
+      linters:
+        - gosec
+
+    - path: _test\.go
+      text: "mnd: Magic number"
+      linters:
+        - gomnd
+
+output:
+#  format: colored-line-number
+  print-issued-lines: true
+  print-linter-name: true

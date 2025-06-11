@@ -1,3 +1,5 @@
+![coverage](docs/coverage.svg)
+
 # Hexagon Template
 
 A Go project template following hexagonal architecture, featuring HTTP APIs, PostgreSQL and in-memory adapters, Sentry integration, and robust testing.
