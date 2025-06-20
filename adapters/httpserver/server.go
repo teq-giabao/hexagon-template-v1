@@ -3,21 +3,19 @@ package httpserver
 import (
 	"hexagon/domain/book"
 	"hexagon/pkg/config"
-	"hexagon/pkg/logging"
 	"hexagon/pkg/sentry"
+	"log/slog"
 	"net/http"
 	"strings"
 
 	sentryecho "github.com/getsentry/sentry-go/echo"
 	"github.com/labstack/echo/v4"
 	"github.com/labstack/echo/v4/middleware"
-	"go.uber.org/zap"
 )
 
 type Server struct {
 	Router *echo.Echo
 	Config *config.Config
-	Logger *zap.SugaredLogger
 
 	// storage adapters
 	BookStore book.Storage
@@ -27,7 +25,6 @@ func New(options ...Options) (*Server, error) {
 	s := Server{
 		Router: echo.New(),
 		Config: config.Empty,
-		Logger: logging.NOOPLogger,
 	}
 
 	for _, fn := range options {
@@ -74,10 +71,7 @@ func (s *Server) RegisterHealthCheck(router *echo.Group) {
 }
 
 func (s *Server) handleError(c echo.Context, err error, status int) error {
-	s.Logger.Errorw(
-		err.Error(),
-		zap.String("request_id", s.requestID(c)),
-	)
+	slog.Error(err.Error(), "request_id", s.requestID(c))
 
 	if status >= http.StatusInternalServerError {
 		sentry.WithContext(c).Error(err)
