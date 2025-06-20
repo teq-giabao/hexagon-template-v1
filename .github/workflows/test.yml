@@ -34,7 +34,7 @@ jobs:
         run: |
           go run gotest.tools/gotestsum@latest \
             --junitfile unit-tests.xml \
-            --format pkgname -- -coverprofile=coverage.out $(go list ./... | grep -Ev '(./cmd/|./*/testutil/|./*/mocks)')
+            --format pkgname -- -coverprofile=coverage.out $(go list ./... | grep -Ev '(./cmd/|./adapters/testutil/|./*/mocks)')
 
       - name: octocov report
         uses: k1LoW/octocov-action@1ad702b3118b6a055c00b01db68ca0d9f6641dbc # v1.4.0
