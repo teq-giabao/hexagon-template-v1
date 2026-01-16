@@ -3,8 +3,8 @@ package main
 import (
 	"hexagon/adapters/postgrestore"
 	"hexagon/pkg/config"
-	"hexagon/pkg/logging"
-	"log"
+	"log/slog"
+	"os"
 	"strconv"
 
 	_ "github.com/lib/pq"
@@ -12,14 +12,13 @@ import (
 )
 
 func main() {
-	logger, err := logging.NewLogger()
-	if err != nil {
-		log.Fatalf("cannot load config: %v\n", err)
-	}
+	logger := slog.New(slog.NewJSONHandler(os.Stdout, nil))
+	slog.SetDefault(logger)
 
 	cfg, err := config.LoadConfig()
 	if err != nil {
-		logger.Fatalf("cannot load config: %v\n", err)
+		logger.Error("cannot load config", "error", err)
+		os.Exit(1)
 	}
 
 	db, err := postgrestore.NewConnection(postgrestore.Options{
@@ -31,7 +30,8 @@ func main() {
 		SSLMode:  false,
 	})
 	if err != nil {
-		logger.Fatalf("cannot connecting to db: %v\n", err)
+		logger.Error("cannot connecting to db", "error", err)
+		os.Exit(1)
 	}
 
 	migrations := &migrate.FileMigrationSource{
@@ -40,8 +40,9 @@ func main() {
 
 	total, err := migrate.Exec(db.DB, "postgres", migrations, migrate.Up)
 	if err != nil {
-		logger.Fatalf("cannot execute migration: %v\n", err)
+		logger.Error("cannot execute migration", "error", err)
+		os.Exit(1)
 	}
 
-	logger.Infof("applied %d migrations\n", total)
+	logger.Info("applied migrations", "total", total)
 }
