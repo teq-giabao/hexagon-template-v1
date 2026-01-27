@@ -1,0 +1,113 @@
+package httpserver_test
+
+import (
+	"context"
+	"encoding/json"
+	"fmt"
+	"hexagon/contact"
+	"hexagon/httpserver"
+	"net/http"
+	"net/http/httptest"
+	"strings"
+	"testing"
+
+	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/mock"
+)
+
+type MockContactService struct {
+	mock.Mock
+}
+
+func (m *MockContactService) AddContact(ctx context.Context, c contact.Contact) error {
+	args := m.Called(ctx, c)
+	return args.Error(0)
+}
+
+func (m *MockContactService) ListContacts(ctx context.Context) ([]contact.Contact, error) {
+	args := m.Called(ctx)
+	return args.Get(0).([]contact.Contact), args.Error(1)
+}
+
+func TestAddContact(t *testing.T) {
+	server := httpserver.Default()
+	svc := new(MockContactService)
+	server.ContactService = svc
+
+	t.Run("should returns 201 when added new contact", func(t *testing.T) {
+		c := contact.Contact{Name: "Jane Doe", Phone: "0987654321"}
+		svc.On("AddContact", mock.Anything, c).Return(nil).Once()
+		request := newAddContactRequest(c)
+		recorder := httptest.NewRecorder()
+
+		server.Router.ServeHTTP(recorder, request)
+
+		assert.Equal(t, http.StatusCreated, recorder.Code, "Expected 201 Created")
+		svc.AssertExpectations(t)
+	})
+
+	t.Run("should returns 400 when request is invalid", func(t *testing.T) {
+		c := contact.Contact{Phone: "0987654321"}
+		svc.On("AddContact", mock.Anything, c).Return(contact.ErrInvalidName).Once()
+		request := newAddContactRequest(c)
+		recorder := httptest.NewRecorder()
+
+		server.Router.ServeHTTP(recorder, request)
+
+		assert.Equal(t, http.StatusBadRequest, recorder.Code, "Expected 400 Bad Request")
+		svc.AssertExpectations(t)
+	})
+
+	t.Run("should returns 400 when JSON is malformed", func(t *testing.T) {
+		request := malformedAddContactRequest()
+		recorder := httptest.NewRecorder()
+
+		server.Router.ServeHTTP(recorder, request)
+
+		assert.Equal(t, http.StatusBadRequest, recorder.Code, "Expected 400 Bad Request for malformed JSON")
+		// Service should not be called when binding fails
+		svc.AssertNotCalled(t, "AddContact")
+	})
+}
+
+func TestListContacts(t *testing.T) {
+	server := httpserver.Default()
+	svc := new(MockContactService)
+	server.ContactService = svc
+
+	t.Run("should returns 200 with list of contacts", func(t *testing.T) {
+		contacts := []contact.Contact{
+			{Name: "Alice", Phone: "1234567890"},
+			{Name: "Bob", Phone: "2345678901"},
+		}
+		svc.On("ListContacts", mock.Anything).Return(contacts, nil).Once()
+		request := httptest.NewRequest("GET", "/api/contacts", nil)
+		recorder := httptest.NewRecorder()
+
+		server.Router.ServeHTTP(recorder, request)
+
+		assertListContacts(t, recorder, contacts)
+		svc.AssertExpectations(t)
+	})
+}
+
+func assertListContacts(t *testing.T, recorder *httptest.ResponseRecorder, contacts []contact.Contact) {
+	assert.Equal(t, http.StatusOK, recorder.Code, "Expected 200 OK")
+	result := []contact.Contact{}
+	err := json.NewDecoder(recorder.Body).Decode(&result)
+	assert.NoError(t, err, "Failed to decode response")
+	assert.Equal(t, contacts, result, "Expected returned contacts to match")
+}
+
+func malformedAddContactRequest() *http.Request {
+	request := httptest.NewRequest("POST", "/api/contacts", strings.NewReader(`{"name": "John", invalid json`))
+	request.Header.Set("Content-Type", "application/json")
+	return request
+}
+
+func newAddContactRequest(c contact.Contact) *http.Request {
+	body := strings.NewReader(fmt.Sprintf(`{"name":"%s","phone":"%s"}`, c.Name, c.Phone))
+	request := httptest.NewRequest("POST", "/api/contacts", body)
+	request.Header.Set("Content-Type", "application/json")
+	return request
+}

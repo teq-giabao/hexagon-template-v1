@@ -1,8 +1,8 @@
 package main
 
 import (
-	"hexagon/adapters/postgrestore"
 	"hexagon/pkg/config"
+	"hexagon/postgres"
 	"log/slog"
 	"os"
 	"strconv"
@@ -21,7 +21,7 @@ func main() {
 		os.Exit(1)
 	}
 
-	db, err := postgrestore.NewConnection(postgrestore.Options{
+	db, err := postgres.NewConnection(postgres.Options{
 		DBName:   cfg.DB.Name,
 		DBUser:   cfg.DB.User,
 		Password: cfg.DB.Pass,
@@ -38,7 +38,13 @@ func main() {
 		Dir: "migrations",
 	}
 
-	total, err := migrate.Exec(db.DB, "postgres", migrations, migrate.Up)
+	sqlDB, err := db.DB()
+	if err != nil {
+		logger.Error("cannot get db instance", "error", err)
+		os.Exit(1)
+	}
+
+	total, err := migrate.Exec(sqlDB, "postgres", migrations, migrate.Up)
 	if err != nil {
 		logger.Error("cannot execute migration", "error", err)
 		os.Exit(1)

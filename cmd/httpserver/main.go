@@ -2,16 +2,14 @@ package main
 
 import (
 	"fmt"
-	"hexagon/adapters/httpserver"
-	"hexagon/adapters/postgrestore"
+	"hexagon/httpserver"
 	"hexagon/pkg/config"
 	"hexagon/pkg/sentry"
+	"hexagon/postgres"
 	"log/slog"
-	"net/http"
 	"os"
 
 	sentrygo "github.com/getsentry/sentry-go"
-	"github.com/labstack/gommon/log"
 	_ "github.com/lib/pq"
 )
 
@@ -21,7 +19,8 @@ func main() {
 
 	cfg, err := config.LoadConfig()
 	if err != nil {
-		log.Fatal(err)
+		slog.Error("Cannot load config", "error", err)
+		os.Exit(1)
 	}
 
 	err = sentrygo.Init(sentrygo.ClientOptions{
@@ -30,26 +29,30 @@ func main() {
 		AttachStacktrace: true,
 	})
 	if err != nil {
-		log.Fatalf("cannot init sentry: %v", err)
+		slog.Error("Cannot init sentry", "error", err)
+		os.Exit(1)
 	}
 	defer sentrygo.Flush(sentry.FlushTime)
 
-	db, err := postgrestore.NewConnection(postgrestore.ParseFromConfig(cfg))
+	_, err = postgres.NewConnection(postgres.Options{
+		DBName:   cfg.DB.Name,
+		DBUser:   cfg.DB.User,
+		Password: cfg.DB.Pass,
+		Host:     cfg.DB.Host,
+		Port:     fmt.Sprintf("%d", cfg.DB.Port),
+		SSLMode:  false,
+	})
 	if err != nil {
-		log.Fatal(err)
+		slog.Error("Cannot open postgres connection", "error", err)
+		os.Exit(1)
 	}
 
-	//db, err := inmemstore.NewConnection()
+	server := httpserver.Default()
+	server.Addr = fmt.Sprintf(":%d", cfg.Port)
 
-	server, err := httpserver.New(httpserver.WithConfig(cfg))
-	if err != nil {
-		log.Fatal(err)
-	}
-
-	server.BookStore = postgrestore.NewBookStore(db)
-	//server.BookStore = inmemstore.NewBookStore(db)
-
-	addr := fmt.Sprintf(":%d", cfg.Port)
 	slog.Info("server started!")
-	log.Fatal(http.ListenAndServe(addr, server))
+	if err := server.Start(); err != nil {
+		slog.Error("server stopped with error", "error", err)
+		os.Exit(1)
+	}
 }

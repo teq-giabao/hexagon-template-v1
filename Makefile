@@ -5,7 +5,7 @@ run:
 
 test:
 	go clean -testcache
-	go test -cover $$(go list ./... | grep -v ./cmd/ | grep -v ./tools/ | grep -v ./**/testutil)
+	go test -cover ./...
 
 local-db:
 	docker-compose --env-file ./.env -f ./tools/compose/docker-compose.yml down
