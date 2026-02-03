@@ -2,11 +2,15 @@ package httpserver
 
 import (
 	"context"
+	"hexagon/auth"
 	"hexagon/contact"
 	"hexagon/errs"
+	"hexagon/pkg/config"
+	"hexagon/user"
 	"net/http"
 
 	sentryecho "github.com/getsentry/sentry-go/echo"
+	"github.com/labstack/echo-jwt/v4"
 	"github.com/labstack/echo/v4"
 	"github.com/labstack/echo/v4/middleware"
 )
@@ -23,9 +27,15 @@ type Server struct {
 
 	// Application services (usecases)
 	ContactService contact.Service
+
+	UserService user.Service
+
+	AuthService auth.Service
+
+	JWTSecret string 
 }
 
-func Default() *Server {
+func Default(cfg *config.Config) *Server {
 	s := Server{
 		Router:       echo.New(),
 		Addr:         ":8080",
@@ -34,9 +44,23 @@ func Default() *Server {
 
 	s.Router.HTTPErrorHandler = customHTTPErrorHandler
 	s.RegisterGlobalMiddlewares()
-	s.RegisterContactRoutes()
-	s.RegisterHealthRoutes()
+	api := s.Router.Group("/api")
 
+	// PUBLIC
+	public := api.Group("")
+	s.RegisterPublicRoutes(public)
+
+	// PRIVATE
+	private := api.Group("")
+	private.Use(echojwt.WithConfig(echojwt.Config{
+		SigningKey: []byte(cfg.Auth.JWTSecret),
+		SigningMethod: "HS256",
+	}))
+	s.RegisterPrivateRoutes(private)
+	s.RegisterHealthRoutes()
+	s.RegisterSwaggerRoutes()
+	s.RegisterUserRoutes()
+	s.RegisterAuthRoutes()
 	return &s
 }
 
@@ -46,6 +70,7 @@ func (s *Server) RegisterGlobalMiddlewares() {
 	s.Router.Use(middleware.RequestID())
 	s.Router.Use(middleware.Gzip())
 	s.Router.Use(sentryecho.New(sentryecho.Options{Repanic: true}))
+	s.Router.Use(middleware.RateLimiter(middleware.NewRateLimiterMemoryStore(20)))
 
 	// CORS
 	if len(s.AllowOrigins) > 0 {
@@ -104,3 +129,19 @@ func customHTTPErrorHandler(err error, c echo.Context) {
 		}
 	}
 }
+
+func (s *Server) RegisterPublicRoutes(g *echo.Group) {
+	// public part of contacts
+	s.RegisterPublicContactRoutes(g)
+
+	// other public modules
+	// s.RegisterHealthRoutes()
+	// s.RegisterSwaggerRoutes()
+	// s.RegisterAuthRoutes()
+	// s.RegisterUserRoutes()
+}
+
+func (s *Server) RegisterPrivateRoutes(g *echo.Group) {
+	s.RegisterPrivateContactRoutes(g)
+}
+

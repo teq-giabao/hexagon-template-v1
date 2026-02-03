@@ -1,13 +1,30 @@
+// @title Hexagon API
+// @version 1.0
+// @description API Documentation for Hexagon project.
+// @host localhost:8088
+// @BasePath /
+// @securityDefinitions.apikey BearerAuth
+// @in header
+// @name Authorization
+// @description Type "Bearer" followed by a space and JWT token.
 package main
 
 import (
 	"fmt"
+	"hexagon/auth"
+	"hexagon/contact"
 	"hexagon/httpserver"
 	"hexagon/pkg/config"
+	"hexagon/pkg/hashing"
+	"hexagon/pkg/jwt"
 	"hexagon/pkg/sentry"
 	"hexagon/postgres"
+	"hexagon/user"
 	"log/slog"
 	"os"
+	"time"
+
+	_ "hexagon/docs"
 
 	sentrygo "github.com/getsentry/sentry-go"
 	_ "github.com/lib/pq"
@@ -34,7 +51,7 @@ func main() {
 	}
 	defer sentrygo.Flush(sentry.FlushTime)
 
-	_, err = postgres.NewConnection(postgres.Options{
+	db, err := postgres.NewConnection(postgres.Options{
 		DBName:   cfg.DB.Name,
 		DBUser:   cfg.DB.User,
 		Password: cfg.DB.Pass,
@@ -47,7 +64,26 @@ func main() {
 		os.Exit(1)
 	}
 
-	server := httpserver.Default()
+	contactService := contact.NewUsecase(postgres.NewContactRepository(db))
+	userService := user.NewUsecase(
+		postgres.NewUserRepository(db),
+		hashing.NewBcryptHasher(),
+	)
+	authService := auth.NewUsecase(
+		postgres.NewUserRepository(db),
+		postgres.NewLoginAttemptRepository(db),
+		hashing.NewBcryptHasher(),
+		jwt.NewJWTProvider(
+			cfg.Auth.JWTSecret,
+			time.Duration(cfg.Auth.TokenTTL)*time.Second,
+			time.Duration(cfg.Auth.RefreshTTL)*time.Second,
+		),
+	)
+	server := httpserver.Default(cfg)
+	server.JWTSecret = cfg.Auth.JWTSecret
+	server.ContactService = contactService
+	server.UserService = userService
+	server.AuthService = authService
 	server.Addr = fmt.Sprintf(":%d", cfg.Port)
 
 	slog.Info("server started!")

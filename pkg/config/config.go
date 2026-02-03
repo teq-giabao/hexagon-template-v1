@@ -23,6 +23,11 @@ type Config struct {
 		Pass      string `envconfig:"DB_PASS"`
 		EnableSSL bool   `envconfig:"ENABLE_SSL"`
 	}
+	Auth struct {
+		JWTSecret  string `envconfig:"AUTH_JWT_SECRET"`
+		TokenTTL   int    `envconfig:"AUTH_TOKEN_TTL"`
+		RefreshTTL int    `envconfig:"AUTH_REFRESH_TTL"`
+	}
 }
 
 func LoadConfig() (*Config, error) {
