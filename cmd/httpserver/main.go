@@ -17,6 +17,7 @@ import (
 	"hexagon/pkg/config"
 	"hexagon/pkg/hashing"
 	"hexagon/pkg/jwt"
+	oauthgoogle "hexagon/pkg/oauth/google"
 	"hexagon/pkg/sentry"
 	"hexagon/postgres"
 	"hexagon/user"
@@ -69,6 +70,11 @@ func main() {
 		postgres.NewUserRepository(db),
 		hashing.NewBcryptHasher(),
 	)
+	googleProvider := oauthgoogle.NewProvider(
+		cfg.Auth.GoogleClientID,
+		cfg.Auth.GoogleClientSecret,
+		cfg.Auth.GoogleRedirectURL,
+	)
 	authService := auth.NewUsecase(
 		postgres.NewUserRepository(db),
 		postgres.NewLoginAttemptRepository(db),
@@ -78,6 +84,7 @@ func main() {
 			time.Duration(cfg.Auth.TokenTTL)*time.Second,
 			time.Duration(cfg.Auth.RefreshTTL)*time.Second,
 		),
+		googleProvider,
 	)
 	server := httpserver.Default(cfg)
 	server.JWTSecret = cfg.Auth.JWTSecret
