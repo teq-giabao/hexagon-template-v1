@@ -1,3 +1,4 @@
+// nolint: funlen
 package user_test
 
 import (
@@ -24,12 +25,25 @@ func (m *MockUserRepository) AllUsers(ctx context.Context) ([]user.User, error) 
 	return args.Get(0).([]user.User), args.Error(1)
 }
 
-//
+type MockPasswordHasher struct {
+	mock.Mock
+}
+
+func (m *MockPasswordHasher) Hash(password string) (string, error) {
+	args := m.Called(password)
+	return args.String(0), args.Error(1)
+}
+
+func (m *MockPasswordHasher) Compare(hashed, plain string) error {
+	args := m.Called(hashed, plain)
+	return args.Error(0)
+}
+
 // TEST AddUser
-//
 func TestAddUser(t *testing.T) {
 	r := new(MockUserRepository)
-	uc := user.NewUsecase(r)
+	h := new(MockPasswordHasher)
+	uc := user.NewUsecase(r, h)
 
 	t.Run("should add new user", func(t *testing.T) {
 		u := user.User{
@@ -37,12 +51,20 @@ func TestAddUser(t *testing.T) {
 			Email:    "john@mail.com",
 			Password: "secret",
 		}
+		hashed := "hashed-secret"
+		expected := user.User{
+			Username: u.Username,
+			Email:    u.Email,
+			Password: hashed,
+		}
 
-		r.On("CreateUser", mock.Anything, u).Return(nil).Once()
+		h.On("Hash", u.Password).Return(hashed, nil).Once()
+		r.On("CreateUser", mock.Anything, expected).Return(nil).Once()
 
 		err := uc.AddUser(context.Background(), u)
 
 		assert.NoError(t, err, "expected no error when adding user")
+		h.AssertExpectations(t)
 		r.AssertExpectations(t)
 	})
 
@@ -56,6 +78,7 @@ func TestAddUser(t *testing.T) {
 		err := uc.AddUser(context.Background(), u)
 
 		assert.Equal(t, user.ErrInvalidUsername, err)
+		h.AssertNotCalled(t, "Hash", mock.Anything)
 		r.AssertExpectations(t)
 	})
 
@@ -69,6 +92,7 @@ func TestAddUser(t *testing.T) {
 		err := uc.AddUser(context.Background(), u)
 
 		assert.Equal(t, user.ErrInvalidEmail, err)
+		h.AssertNotCalled(t, "Hash", mock.Anything)
 		r.AssertExpectations(t)
 	})
 
@@ -82,16 +106,16 @@ func TestAddUser(t *testing.T) {
 		err := uc.AddUser(context.Background(), u)
 
 		assert.Equal(t, user.ErrInvalidPassword, err)
+		h.AssertNotCalled(t, "Hash", mock.Anything)
 		r.AssertExpectations(t)
 	})
 }
 
-//
 // TEST ListUsers
-//
 func TestListUsers(t *testing.T) {
 	r := new(MockUserRepository)
-	uc := user.NewUsecase(r)
+	h := new(MockPasswordHasher)
+	uc := user.NewUsecase(r, h)
 
 	t.Run("should return list of users", func(t *testing.T) {
 		users := []user.User{

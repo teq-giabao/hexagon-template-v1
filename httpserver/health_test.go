@@ -10,7 +10,7 @@ import (
 )
 
 func TestHealthcheck(t *testing.T) {
-	server := httpserver.Default()
+	server := httpserver.Default(testConfig())
 
 	req := httptest.NewRequest(http.MethodGet, "/healthcheck", nil)
 	rec := httptest.NewRecorder()

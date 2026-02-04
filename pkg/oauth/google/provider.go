@@ -69,7 +69,7 @@ func (p *Provider) Exchange(ctx context.Context, code string) (auth.OAuthUser, e
 	var payload struct {
 		Email         string `json:"email"`
 		Name          string `json:"name"`
-		VerifiedEmail bool   `json:"verified_email"`
+		VerifiedEmail bool   `json:"verified_email"` // nolint: tagliatelle
 	}
 	if err := json.NewDecoder(resp.Body).Decode(&payload); err != nil {
 		return auth.OAuthUser{}, err
