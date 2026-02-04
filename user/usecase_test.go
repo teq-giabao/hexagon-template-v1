@@ -41,11 +41,11 @@ func (m *MockPasswordHasher) Compare(hashed, plain string) error {
 
 // TEST AddUser
 func TestAddUser(t *testing.T) {
-	r := new(MockUserRepository)
-	h := new(MockPasswordHasher)
-	uc := user.NewUsecase(r, h)
-
 	t.Run("should add new user", func(t *testing.T) {
+		r := new(MockUserRepository)
+		h := new(MockPasswordHasher)
+		uc := user.NewUsecase(r, h)
+
 		u := user.User{
 			Username: "john",
 			Email:    "john@mail.com",
@@ -69,6 +69,10 @@ func TestAddUser(t *testing.T) {
 	})
 
 	t.Run("should fail on empty username", func(t *testing.T) {
+		r := new(MockUserRepository)
+		h := new(MockPasswordHasher)
+		uc := user.NewUsecase(r, h)
+
 		u := user.User{
 			Username: "",
 			Email:    "john@mail.com",
@@ -83,6 +87,10 @@ func TestAddUser(t *testing.T) {
 	})
 
 	t.Run("should fail on empty email", func(t *testing.T) {
+		r := new(MockUserRepository)
+		h := new(MockPasswordHasher)
+		uc := user.NewUsecase(r, h)
+
 		u := user.User{
 			Username: "john",
 			Email:    "",
@@ -97,6 +105,10 @@ func TestAddUser(t *testing.T) {
 	})
 
 	t.Run("should fail on empty password", func(t *testing.T) {
+		r := new(MockUserRepository)
+		h := new(MockPasswordHasher)
+		uc := user.NewUsecase(r, h)
+
 		u := user.User{
 			Username: "john",
 			Email:    "john@mail.com",
