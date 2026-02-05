@@ -32,7 +32,9 @@ func (s *Server) handleAddUser(c echo.Context) error {
 		return err
 	}
 
-	return c.NoContent(http.StatusCreated)
+	return writeSuccess(c, http.StatusCreated, map[string]string{
+		"status": "created",
+	})
 }
 
 // handleListUsers godoc
@@ -48,5 +50,5 @@ func (s *Server) handleListUsers(c echo.Context) error {
 		return err
 	}
 
-	return c.JSON(http.StatusOK, users)
+	return writeList(c, http.StatusOK, users)
 }

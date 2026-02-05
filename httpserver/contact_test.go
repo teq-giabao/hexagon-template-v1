@@ -45,6 +45,9 @@ func TestAddContact(t *testing.T) {
 		server.Router.ServeHTTP(recorder, request)
 
 		assert.Equal(t, http.StatusCreated, recorder.Code, "Expected 201 Created")
+		resp := decodeAPIResponse(t, recorder)
+		assert.Equal(t, "201", resp.Code)
+		assert.Equal(t, "OK", resp.Message)
 		svc.AssertExpectations(t)
 	})
 
@@ -57,6 +60,8 @@ func TestAddContact(t *testing.T) {
 		server.Router.ServeHTTP(recorder, request)
 
 		assert.Equal(t, http.StatusBadRequest, recorder.Code, "Expected 400 Bad Request")
+		resp := decodeAPIResponse(t, recorder)
+		assert.Equal(t, "100010", resp.Code)
 		svc.AssertExpectations(t)
 	})
 
@@ -68,6 +73,8 @@ func TestAddContact(t *testing.T) {
 		server.Router.ServeHTTP(recorder, request)
 
 		assert.Equal(t, http.StatusBadRequest, recorder.Code, "Expected 400 Bad Request for malformed JSON")
+		resp := decodeAPIResponse(t, recorder)
+		assert.Equal(t, "100010", resp.Code)
 		// Service should not be called when binding fails
 		svc.AssertNotCalled(t, "AddContact")
 	})
@@ -96,10 +103,15 @@ func TestListContacts(t *testing.T) {
 
 func assertListContacts(t *testing.T, recorder *httptest.ResponseRecorder, contacts []contact.Contact) {
 	assert.Equal(t, http.StatusOK, recorder.Code, "Expected 200 OK")
-	result := []contact.Contact{}
-	err := json.NewDecoder(recorder.Body).Decode(&result)
+	resp := decodeAPIResponse(t, recorder)
+	assert.Equal(t, "200", resp.Code)
+	assert.Equal(t, "OK", resp.Message)
+	var result struct {
+		Data []contact.Contact `json:"data"`
+	}
+	err := json.Unmarshal(resp.Result, &result)
 	assert.NoError(t, err, "Failed to decode response")
-	assert.Equal(t, contacts, result, "Expected returned contacts to match")
+	assert.Equal(t, contacts, result.Data, "Expected returned contacts to match")
 }
 
 func malformedAddContactRequest() *http.Request {

@@ -2,6 +2,7 @@ package httpserver
 
 import (
 	"context"
+	"fmt"
 	"hexagon/auth"
 	"hexagon/contact"
 	"hexagon/errs"
@@ -32,7 +33,7 @@ type Server struct {
 
 	AuthService auth.Service
 
-	JWTSecret string 
+	JWTSecret string
 }
 
 func Default(cfg *config.Config) *Server {
@@ -53,7 +54,7 @@ func Default(cfg *config.Config) *Server {
 	// PRIVATE
 	private := api.Group("")
 	private.Use(echojwt.WithConfig(echojwt.Config{
-		SigningKey: []byte(cfg.Auth.JWTSecret),
+		SigningKey:    []byte(cfg.Auth.JWTSecret),
 		SigningMethod: "HS256",
 	}))
 	s.RegisterPrivateRoutes(private)
@@ -96,7 +97,7 @@ func customHTTPErrorHandler(err error, c echo.Context) {
 	// Check if it's an Echo HTTPError
 	if he, ok := err.(*echo.HTTPError); ok {
 		code = he.Code
-		message = he.Message.(string)
+		message = fmt.Sprint(he.Message)
 	} else {
 		// Map application error codes to HTTP status codes
 		switch errs.ErrorCode(err) {
@@ -123,7 +124,11 @@ func customHTTPErrorHandler(err error, c echo.Context) {
 
 	// Don't write response if already committed
 	if !c.Response().Committed {
-		err = c.JSON(code, map[string]string{"error": message})
+		info := err.Error()
+		if code == http.StatusInternalServerError {
+			info = err.Error()
+		}
+		err = writeError(c, code, message, info, err)
 		if err != nil {
 			c.Logger().Error(err)
 		}
@@ -144,4 +149,3 @@ func (s *Server) RegisterPublicRoutes(g *echo.Group) {
 func (s *Server) RegisterPrivateRoutes(g *echo.Group) {
 	s.RegisterPrivateContactRoutes(g)
 }
-
