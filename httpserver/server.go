@@ -43,6 +43,7 @@ func Default(cfg *config.Config) *Server {
 		AllowOrigins: []string{"*"},
 	}
 
+	s.Router.Validator = NewValidator()
 	s.Router.HTTPErrorHandler = customHTTPErrorHandler
 	s.RegisterGlobalMiddlewares()
 	api := s.Router.Group("/api")
