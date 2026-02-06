@@ -9,7 +9,7 @@ import (
 	"github.com/go-playground/validator/v10"
 )
 
-var phonePattern = regexp.MustCompile(`^\+?[0-9]{8,15}$`)
+var phonePattern = regexp.MustCompile(`^[0-9]{10}$`)
 
 type CustomValidator struct {
 	validate *validator.Validate
@@ -28,12 +28,13 @@ func NewValidator() *CustomValidator {
 		return name
 	})
 	_ = v.RegisterValidation("phone", validatePhone)
+	_ = v.RegisterValidation("password", validatePassword)
 	return &CustomValidator{validate: v}
 }
 
 func (cv *CustomValidator) Validate(i interface{}) error {
 	if err := cv.validate.Struct(i); err != nil {
-		return errs.Errorf(errs.EINVALID, formatValidationError(err))
+		return errs.Errorf(errs.EINVALID, "%s", formatValidationError(err))
 	}
 	return nil
 }
@@ -44,6 +45,32 @@ func validatePhone(fl validator.FieldLevel) bool {
 	}
 	value := strings.TrimSpace(fl.Field().String())
 	return phonePattern.MatchString(value)
+}
+
+func validatePassword(fl validator.FieldLevel) bool {
+	if fl.Field().Kind() != reflect.String {
+		return false
+	}
+	value := strings.TrimSpace(fl.Field().String())
+	if len(value) < 12 {
+		return false
+	}
+
+	var hasLower, hasUpper, hasDigit, hasSpecial bool
+	for _, r := range value {
+		switch {
+		case r >= 'a' && r <= 'z':
+			hasLower = true
+		case r >= 'A' && r <= 'Z':
+			hasUpper = true
+		case r >= '0' && r <= '9':
+			hasDigit = true
+		default:
+			hasSpecial = true
+		}
+	}
+
+	return hasLower && hasUpper && hasDigit && hasSpecial
 }
 
 func formatValidationError(err error) string {
