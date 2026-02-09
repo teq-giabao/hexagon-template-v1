@@ -124,8 +124,15 @@ func (s *Server) handleGoogleCallback(c echo.Context) error {
 		if errors.Is(err, auth.ErrOAuthNotConfigured) {
 			return writeError(c, http.StatusNotImplemented, "oauth not configured", err.Error(), err)
 		}
-		if errors.Is(err, auth.ErrInvalidOAuthUser) {
-			return writeError(c, http.StatusUnauthorized, "invalid oauth user", err.Error(), err)
+		if errors.Is(err, auth.ErrMissingCode) || errors.Is(err, auth.ErrMissingState) {
+			return c.JSON(http.StatusBadRequest, map[string]string{
+				"error": "missing oauth parameters",
+			})
+		}
+		if errors.Is(err, auth.ErrMissingEmail) || errors.Is(err, auth.ErrUnverifiedEmail) || errors.Is(err, auth.ErrInvalidOAuthUser) {
+			return c.JSON(http.StatusUnauthorized, map[string]string{
+				"error": "invalid oauth user",
+			})
 		}
 		return writeError(c, http.StatusInternalServerError, "internal error", err.Error(), err)
 	}
