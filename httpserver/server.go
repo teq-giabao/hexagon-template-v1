@@ -11,7 +11,7 @@ import (
 	"net/http"
 
 	sentryecho "github.com/getsentry/sentry-go/echo"
-	"github.com/labstack/echo-jwt/v4"
+	echojwt "github.com/labstack/echo-jwt/v4"
 	"github.com/labstack/echo/v4"
 	"github.com/labstack/echo/v4/middleware"
 )
@@ -125,10 +125,10 @@ func customHTTPErrorHandler(err error, c echo.Context) {
 	// Don't write response if already committed
 	if !c.Response().Committed {
 		info := err.Error()
-		if code == http.StatusInternalServerError {
-			info = err.Error()
+		if code >= http.StatusInternalServerError {
+			c.Logger().Error(err)
 		}
-		err = writeError(c, code, message, info, err)
+		err = RespondError(c, code, message, info, err)
 		if err != nil {
 			c.Logger().Error(err)
 		}

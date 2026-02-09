@@ -2,6 +2,7 @@ package httpserver
 
 import (
 	"fmt"
+	"net/http"
 	"strconv"
 
 	"hexagon/errs"
@@ -12,16 +13,23 @@ import (
 const (
 	successMessage   = "OK"
 	defaultErrorCode = "100500"
+
+	ErrCodeInvalid        = "100010"
+	ErrCodeNotFound       = "100404"
+	ErrCodeUnauthorized   = "100401"
+	ErrCodeConflict       = "100409"
+	ErrCodeNotImplemented = "100501"
+	ErrCodeInternal       = "100500"
 )
 
 type APIResponse struct {
-	Code    string      `json:"code"`
-	Message string      `json:"message"`
-	Result  interface{} `json:"result,omitempty"`
-	Info    string      `json:"info,omitempty"`
+	Code    string `json:"code"`
+	Message string `json:"message"`
+	Result  any    `json:"result,omitempty"`
+	Info    string `json:"info,omitempty"`
 }
 
-func writeSuccess(c echo.Context, status int, result interface{}) error {
+func RespondSuccess(c echo.Context, status int, result any) error {
 	return c.JSON(status, APIResponse{
 		Code:    strconv.Itoa(status),
 		Message: successMessage,
@@ -29,15 +37,15 @@ func writeSuccess(c echo.Context, status int, result interface{}) error {
 	})
 }
 
-func writeList(c echo.Context, status int, data interface{}) error {
-	return writeSuccess(c, status, map[string]interface{}{
+func RespondList(c echo.Context, status int, data any) error {
+	return RespondSuccess(c, status, map[string]any{
 		"data": data,
 	})
 }
 
-//nolint: unused
-func writePagedList(c echo.Context, status int, data interface{}, meta interface{}, page, limit, total int) error {
-	result := map[string]interface{}{
+// nolint: unused
+func RespondPagedList(c echo.Context, status int, data any, meta any, page, limit, total int) error {
+	result := map[string]any{
 		"data":  data,
 		"page":  page,
 		"limit": limit,
@@ -46,10 +54,19 @@ func writePagedList(c echo.Context, status int, data interface{}, meta interface
 	if meta != nil {
 		result["meta"] = meta
 	}
-	return writeSuccess(c, status, result)
+	return RespondSuccess(c, status, result)
 }
 
-func writeError(c echo.Context, status int, message, info string, err error) error {
+func RespondError(c echo.Context, status int, message, info string, err error) error {
+	if message == "" && status != 0 {
+		message = http.StatusText(status)
+	}
+	if message == "" {
+		message = "Error"
+	}
+	if status >= 500 {
+		info = ""
+	}
 	return c.JSON(status, APIResponse{
 		Code:    errorCode(err, status),
 		Message: message,
@@ -61,17 +78,17 @@ func errorCode(err error, status int) string {
 	if _, ok := err.(*errs.Error); ok {
 		switch errs.ErrorCode(err) {
 		case errs.EINVALID:
-			return "100010"
+			return ErrCodeInvalid
 		case errs.ENOTFOUND:
-			return "100404"
+			return ErrCodeNotFound
 		case errs.ECONFLICT:
-			return "100409"
+			return ErrCodeConflict
 		case errs.EUNAUTHORIZED:
-			return "100401"
+			return ErrCodeUnauthorized
 		case errs.ENOTIMPLEMENTED:
-			return "100501"
+			return ErrCodeNotImplemented
 		case errs.EINTERNAL:
-			return defaultErrorCode
+			return ErrCodeInternal
 		}
 	}
 

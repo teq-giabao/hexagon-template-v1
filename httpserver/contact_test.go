@@ -2,7 +2,6 @@ package httpserver_test
 
 import (
 	"context"
-	"encoding/json"
 	"fmt"
 	"hexagon/contact"
 	"hexagon/httpserver"
@@ -109,8 +108,7 @@ func assertListContacts(t *testing.T, recorder *httptest.ResponseRecorder, conta
 	var result struct {
 		Data []contact.Contact `json:"data"`
 	}
-	err := json.Unmarshal(resp.Result, &result)
-	assert.NoError(t, err, "Failed to decode response")
+	decodeAPIResult(t, resp.Result, &result)
 	assert.Equal(t, contacts, result.Data, "Expected returned contacts to match")
 }
 

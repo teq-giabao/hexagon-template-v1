@@ -11,22 +11,22 @@ import (
 )
 
 func TestHealthcheck(t *testing.T) {
-    server := httpserver.Default(testConfig())
+	server := httpserver.Default(testConfig())
 
-    req := httptest.NewRequest(http.MethodGet, "/healthcheck", nil)
-    rec := httptest.NewRecorder()
+	req := httptest.NewRequest(http.MethodGet, "/healthcheck", nil)
+	rec := httptest.NewRecorder()
 
-    server.Router.ServeHTTP(rec, req)
+	server.Router.ServeHTTP(rec, req)
 
-    assert.Equal(t, http.StatusOK, rec.Code)
+	assert.Equal(t, http.StatusOK, rec.Code)
 
-    var body map[string]interface{}
-    err := json.Unmarshal(rec.Body.Bytes(), &body)
-    assert.NoError(t, err)
+	var body map[string]interface{}
+	err := json.Unmarshal(rec.Body.Bytes(), &body)
+	assert.NoError(t, err)
 
-    assert.Equal(t, "200", body["code"])
-    assert.Equal(t, "OK", body["message"])
+	assert.Equal(t, "200", body["code"])
+	assert.Equal(t, "OK", body["message"])
 
-    result := body["result"].(map[string]interface{})
-    assert.Equal(t, "OK", result["status"])
+	result := body["result"].(map[string]interface{})
+	assert.Equal(t, "OK", result["status"])
 }
