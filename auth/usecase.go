@@ -16,6 +16,10 @@ var (
 	ErrAccountLocked       = errors.New("account temporarily locked")
 	ErrInvalidRefreshToken = errors.New("invalid refresh token")
 	ErrInvalidOAuthUser    = errors.New("invalid oauth user")
+	ErrMissingState        = errors.New("missing oauth state")
+	ErrMissingCode         = errors.New("missing oauth code")
+	ErrMissingEmail        = errors.New("missing oauth email")
+	ErrUnverifiedEmail     = errors.New("unverified oauth email")
 	ErrOAuthNotConfigured  = errors.New("oauth provider not configured")
 )
 
@@ -29,6 +33,7 @@ type Service interface {
 type UserRepository interface {
 	GetByEmail(ctx context.Context, email string) (user.User, error)
 	CreateUser(ctx context.Context, u user.User) error
+	CreateUserTx(ctx context.Context, u user.User, fn func(created user.User) error) (user.User, error)
 }
 
 type LoginAttempt struct {
@@ -181,7 +186,7 @@ func (uc *Usecase) GoogleAuthURL(state string) (string, error) {
 		return "", ErrOAuthNotConfigured
 	}
 	if strings.TrimSpace(state) == "" {
-		return "", ErrInvalidOAuthUser
+		return "", ErrMissingState
 	}
 	return uc.googleProvider.AuthCodeURL(state), nil
 }
@@ -191,44 +196,26 @@ func (uc *Usecase) LoginWithGoogle(ctx context.Context, code string) (TokenPair,
 		return TokenPair{}, ErrOAuthNotConfigured
 	}
 	if strings.TrimSpace(code) == "" {
-		return TokenPair{}, ErrInvalidOAuthUser
+		return TokenPair{}, ErrMissingCode
 	}
 
 	oauthUser, err := uc.googleProvider.Exchange(ctx, code)
 	if err != nil {
 		return TokenPair{}, err
 	}
-	if !oauthUser.EmailVerified || strings.TrimSpace(oauthUser.Email) == "" {
-		return TokenPair{}, ErrInvalidOAuthUser
+	if strings.TrimSpace(oauthUser.Email) == "" {
+		return TokenPair{}, ErrMissingEmail
+	}
+	if !oauthUser.EmailVerified {
+		return TokenPair{}, ErrUnverifiedEmail
 	}
 
-	u, err := uc.userRepo.GetByEmail(ctx, oauthUser.Email)
+	u, tokens, created, err := uc.getOrCreateUserFromOAuth(ctx, oauthUser)
 	if err != nil {
-		if errors.Is(err, user.ErrInvalidEmail) {
-			password, err := generateRandomPassword(32)
-			if err != nil {
-				return TokenPair{}, err
-			}
-			hashed, err := uc.passwordHasher.Hash(password)
-			if err != nil {
-				return TokenPair{}, err
-			}
-			u = user.User{
-				Username: oauthUser.Email,
-				Email:    oauthUser.Email,
-				Password: hashed,
-			}
-			if err := uc.userRepo.CreateUser(ctx, u); err != nil {
-				return TokenPair{}, err
-			}
-			created, err := uc.userRepo.GetByEmail(ctx, oauthUser.Email)
-			if err != nil {
-				return TokenPair{}, err
-			}
-			u = created
-		} else {
-			return TokenPair{}, err
-		}
+		return TokenPair{}, err
+	}
+	if created {
+		return tokens, nil
 	}
 
 	accessToken, err := uc.tokenProvider.GenerateAccessToken(u)
@@ -245,6 +232,56 @@ func (uc *Usecase) LoginWithGoogle(ctx context.Context, code string) (TokenPair,
 		AccessToken:  accessToken,
 		RefreshToken: refreshToken,
 	}, nil
+}
+
+func (uc *Usecase) getOrCreateUserFromOAuth(ctx context.Context, oauthUser OAuthUser) (user.User, TokenPair, bool, error) {
+	u, err := uc.userRepo.GetByEmail(ctx, oauthUser.Email)
+	if err == nil {
+		return u, TokenPair{}, false, nil
+	}
+	if !errors.Is(err, user.ErrInvalidEmail) {
+		return user.User{}, TokenPair{}, false, err
+	}
+
+	password, err := generateRandomPassword(32)
+	if err != nil {
+		return user.User{}, TokenPair{}, false, err
+	}
+	hashed, err := uc.passwordHasher.Hash(password)
+	if err != nil {
+		return user.User{}, TokenPair{}, false, err
+	}
+	username, err := generateRandomUsername(16)
+	if err != nil {
+		return user.User{}, TokenPair{}, false, err
+	}
+	newUser := user.User{
+		Username: username,
+		Email:    oauthUser.Email,
+		Password: hashed,
+	}
+
+	var tokens TokenPair
+	created, err := uc.userRepo.CreateUserTx(ctx, newUser, func(created user.User) error {
+		accessToken, err := uc.tokenProvider.GenerateAccessToken(created)
+		if err != nil {
+			return err
+		}
+		refreshToken, err := uc.tokenProvider.GenerateRefreshToken(created)
+		if err != nil {
+			return err
+		}
+		tokens = TokenPair{
+			AccessToken:  accessToken,
+			RefreshToken: refreshToken,
+		}
+		return nil
+	})
+	if err != nil {
+		return user.User{}, TokenPair{}, false, err
+	}
+
+	return created, tokens, true, nil
 }
 
 func (uc *Usecase) recordFailure(ctx context.Context, email string, attempt LoginAttempt) error {
@@ -265,4 +302,15 @@ func generateRandomPassword(length int) (string, error) {
 		return "", err
 	}
 	return base64.RawURLEncoding.EncodeToString(buf), nil
+}
+
+func generateRandomUsername(length int) (string, error) {
+	if length <= 0 {
+		return "", errors.New("invalid username length")
+	}
+	buf := make([]byte, length)
+	if _, err := rand.Read(buf); err != nil {
+		return "", err
+	}
+	return "u_" + base64.RawURLEncoding.EncodeToString(buf), nil
 }

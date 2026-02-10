@@ -72,11 +72,15 @@ func main() {
 		postgres.NewUserRepository(db),
 		hashing.NewBcryptHasher(),
 	)
-	googleProvider := oauthgoogle.NewProvider(
+	googleProvider, err := oauthgoogle.NewProvider(
 		cfg.Auth.GoogleClientID,
 		cfg.Auth.GoogleClientSecret,
 		cfg.Auth.GoogleRedirectURL,
 	)
+	if err != nil {
+		slog.Error("Cannot init google oauth provider", "error", err)
+		os.Exit(1)
+	}
 	authService := auth.NewUsecase(
 		postgres.NewUserRepository(db),
 		postgres.NewLoginAttemptRepository(db),
