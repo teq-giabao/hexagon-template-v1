@@ -14,16 +14,22 @@ func TestLoadConfig(t *testing.T) {
 	t.Run("loads config from environment variables", func(t *testing.T) {
 		// Setup environment variables
 		envVars := map[string]string{
-			"APP_ENV":       "test",
-			"PORT":          "8080",
-			"SENTRY_DSN":    "https://test@sentry.io/123",
-			"ALLOW_ORIGINS": "*",
-			"DB_NAME":       "testdb",
-			"DB_HOST":       "localhost",
-			"DB_PORT":       "5432",
-			"DB_USER":       "testuser",
-			"DB_PASS":       "testpass",
-			"ENABLE_SSL":    "true",
+			"APP_ENV":                  "test",
+			"PORT":                     "8080",
+			"SENTRY_DSN":               "https://test@sentry.io/123",
+			"ALLOW_ORIGINS":            "*",
+			"DB_DRIVER":                "postgres",
+			"DB_NAME":                  "testdb",
+			"DB_HOST":                  "localhost",
+			"DB_PORT":                  "5432",
+			"DB_USER":                  "testuser",
+			"DB_PASS":                  "testpass",
+			"ENABLE_SSL":               "true",
+			"DDB_REGION":               "ap-southeast-1",
+			"DDB_ENDPOINT":             "http://localhost:8000",
+			"DDB_CONTACTS_TABLE":       "contacts",
+			"DDB_USERS_TABLE":          "users",
+			"DDB_LOGIN_ATTEMPTS_TABLE": "login_attempts",
 		}
 
 		// Set environment variables
@@ -48,6 +54,12 @@ func TestLoadConfig(t *testing.T) {
 		assert.Equal(t, "testuser", cfg.DB.User)
 		assert.Equal(t, "testpass", cfg.DB.Pass)
 		assert.True(t, cfg.DB.EnableSSL)
+		assert.Equal(t, "postgres", cfg.DB.Driver)
+		assert.Equal(t, "ap-southeast-1", cfg.DynamoDB.Region)
+		assert.Equal(t, "http://localhost:8000", cfg.DynamoDB.Endpoint)
+		assert.Equal(t, "contacts", cfg.DynamoDB.ContactsTable)
+		assert.Equal(t, "users", cfg.DynamoDB.UsersTable)
+		assert.Equal(t, "login_attempts", cfg.DynamoDB.LoginAttemptsTable)
 	})
 
 	t.Run("handles invalid port number", func(t *testing.T) {

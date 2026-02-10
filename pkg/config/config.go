@@ -17,12 +17,23 @@ type Config struct {
 	AllowOrigins string `envconfig:"ALLOW_ORIGINS"`
 
 	DB struct {
+		Driver    string `envconfig:"DB_DRIVER"`
 		Name      string `envconfig:"DB_NAME"`
 		Host      string `envconfig:"DB_HOST"`
 		Port      int    `envconfig:"DB_PORT"`
 		User      string `envconfig:"DB_USER"`
 		Pass      string `envconfig:"DB_PASS"`
 		EnableSSL bool   `envconfig:"ENABLE_SSL"`
+	}
+	DynamoDB struct {
+		Region             string `envconfig:"DDB_REGION"`
+		Endpoint           string `envconfig:"DDB_ENDPOINT"`
+		AccessKey          string `envconfig:"DDB_ACCESS_KEY"`
+		SecretKey          string `envconfig:"DDB_SECRET_KEY"`
+		SessionToken       string `envconfig:"DDB_SESSION_TOKEN"`
+		ContactsTable      string `envconfig:"DDB_CONTACTS_TABLE"`
+		UsersTable         string `envconfig:"DDB_USERS_TABLE"`
+		LoginAttemptsTable string `envconfig:"DDB_LOGIN_ATTEMPTS_TABLE"`
 	}
 	Auth struct {
 		JWTSecret          string `envconfig:"AUTH_JWT_SECRET"`

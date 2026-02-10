@@ -35,7 +35,7 @@ func writeList(c echo.Context, status int, data interface{}) error {
 	})
 }
 
-//nolint: unused
+// nolint: unused
 func writePagedList(c echo.Context, status int, data interface{}, meta interface{}, page, limit, total int) error {
 	result := map[string]interface{}{
 		"data":  data,

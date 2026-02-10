@@ -18,7 +18,7 @@ type PasswordHasher interface {
 }
 
 type Usecase struct {
-	r Repository
+	r      Repository
 	hasher PasswordHasher
 }
 

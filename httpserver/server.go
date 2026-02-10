@@ -11,7 +11,7 @@ import (
 	"net/http"
 
 	sentryecho "github.com/getsentry/sentry-go/echo"
-	"github.com/labstack/echo-jwt/v4"
+	echojwt "github.com/labstack/echo-jwt/v4"
 	"github.com/labstack/echo/v4"
 	"github.com/labstack/echo/v4/middleware"
 )
