@@ -1,7 +1,6 @@
 package httpserver_test
 
 import (
-	"encoding/json"
 	"hexagon/contact"
 	"net/http"
 	"net/http/httptest"
@@ -38,9 +37,13 @@ func TestKeepingTrackOfContact(t *testing.T) {
 }
 
 func assertAddedContact(t *testing.T, rec *httptest.ResponseRecorder, c contact.Contact) {
-	result := []contact.Contact{}
-	err := json.NewDecoder(rec.Body).Decode(&result)
-	assert.NoError(t, err, "Failed to decode response")
-	assert.Len(t, result, 3, "Expected 3 contacts in the list")
-	assert.Contains(t, result, c, "Expected contact list to contain the newly added contact")
+	resp := decodeAPIResponse(t, rec)
+	assert.Equal(t, "200", resp.Code)
+	assert.Equal(t, "OK", resp.Message)
+	var result struct {
+		Data []contact.Contact `json:"data"`
+	}
+	decodeAPIResult(t, resp.Result, &result)
+	assert.Len(t, result.Data, 3, "Expected 3 contacts in the list")
+	assert.Contains(t, result.Data, c, "Expected contact list to contain the newly added contact")
 }

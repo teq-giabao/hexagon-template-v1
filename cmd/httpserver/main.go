@@ -14,6 +14,7 @@ import (
 	"fmt"
 	"hexagon/auth"
 	"hexagon/contact"
+	"hexagon/grpcserver"
 	"hexagon/httpserver"
 	"hexagon/pkg/config"
 	"hexagon/pkg/hashing"
@@ -97,6 +98,20 @@ func main() {
 	server.UserService = userService
 	server.AuthService = authService
 	server.Addr = fmt.Sprintf(":%d", cfg.Port)
+
+	grpcPort := cfg.GRPCPort
+	if grpcPort == 0 {
+		grpcPort = cfg.Port + 1
+	}
+	grpcAddr := fmt.Sprintf(":%d", grpcPort)
+	grpcServer := grpcserver.New(grpcAddr)
+	go func() {
+		slog.Info("grpc server started", "addr", grpcAddr)
+		if err := grpcServer.Start(); err != nil {
+			slog.Error("grpc server stopped with error", "error", err)
+			os.Exit(1)
+		}
+	}()
 
 	slog.Info("server started!")
 	if err := server.Start(); err != nil {

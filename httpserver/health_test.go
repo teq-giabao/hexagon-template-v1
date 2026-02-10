@@ -1,6 +1,7 @@
 package httpserver_test
 
 import (
+	"encoding/json"
 	"hexagon/httpserver"
 	"net/http"
 	"net/http/httptest"
@@ -18,5 +19,14 @@ func TestHealthcheck(t *testing.T) {
 	server.Router.ServeHTTP(rec, req)
 
 	assert.Equal(t, http.StatusOK, rec.Code)
-	assert.Equal(t, `{"status":"OK"}`+"\n", rec.Body.String())
+
+	var body map[string]interface{}
+	err := json.Unmarshal(rec.Body.Bytes(), &body)
+	assert.NoError(t, err)
+
+	assert.Equal(t, "200", body["code"])
+	assert.Equal(t, "OK", body["message"])
+
+	result := body["result"].(map[string]interface{})
+	assert.Equal(t, "OK", result["status"])
 }

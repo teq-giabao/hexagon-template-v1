@@ -3,7 +3,6 @@ package httpserver_test
 
 import (
 	"context"
-	"encoding/json"
 	"errors"
 	"fmt"
 	"hexagon/errs"
@@ -193,11 +192,8 @@ func TestCustomErrorHandler(t *testing.T) {
 
 			// Assert
 			assert.Equal(t, tt.expectedStatusCode, response.Code)
-
-			var body map[string]string
-			err := json.Unmarshal(response.Body.Bytes(), &body)
-			require.NoError(t, err)
-			assert.Equal(t, tt.expectedMessage, body["error"])
+			resp := decodeAPIResponse(t, response)
+			assert.Equal(t, tt.expectedMessage, resp.Message)
 		})
 	}
 }

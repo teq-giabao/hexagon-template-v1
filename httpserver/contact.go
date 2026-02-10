@@ -38,7 +38,9 @@ func (s *Server) handleAddContact(c echo.Context) error {
 		return err
 	}
 
-	return c.NoContent(http.StatusCreated)
+	return RespondSuccess(c, http.StatusCreated, map[string]string{
+		"status": "created",
+	})
 }
 
 // handleListContacts godoc
@@ -55,5 +57,5 @@ func (s *Server) handleListContacts(c echo.Context) error {
 		return err
 	}
 
-	return c.JSON(http.StatusOK, contacts)
+	return RespondList(c, http.StatusOK, contacts)
 }

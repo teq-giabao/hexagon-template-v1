@@ -8,6 +8,7 @@ import (
 	"time"
 
 	"hexagon/auth"
+	"hexagon/errs"
 
 	"github.com/labstack/echo/v4"
 )
@@ -35,9 +36,7 @@ func (s *Server) handleLogin(c echo.Context) error {
 	var req LoginRequest
 
 	if err := c.Bind(&req); err != nil {
-		return c.JSON(http.StatusBadRequest, map[string]string{
-			"error": "invalid request body",
-		})
+		return RespondError(c, http.StatusBadRequest, "invalid request body", err.Error(), err)
 	}
 
 	tokens, err := s.AuthService.Login(
@@ -48,21 +47,15 @@ func (s *Server) handleLogin(c echo.Context) error {
 
 	if err != nil {
 		if errors.Is(err, auth.ErrAccountLocked) {
-			return c.JSON(http.StatusTooManyRequests, map[string]string{
-				"error": "account temporarily locked",
-			})
+			return RespondError(c, http.StatusTooManyRequests, "account temporarily locked", err.Error(), err)
 		}
 		if errors.Is(err, auth.ErrInvalidCredentials) {
-			return c.JSON(http.StatusUnauthorized, map[string]string{
-				"error": "invalid credentials",
-			})
+			return RespondError(c, http.StatusUnauthorized, "invalid credentials", err.Error(), err)
 		}
-		return c.JSON(http.StatusInternalServerError, map[string]string{
-			"error": "internal error",
-		})
+		return RespondError(c, http.StatusInternalServerError, "internal error", err.Error(), err)
 	}
 
-	return c.JSON(http.StatusOK, map[string]string{
+	return RespondSuccess(c, http.StatusOK, map[string]string{
 		"access_token":  tokens.AccessToken,
 		"refresh_token": tokens.RefreshToken,
 	})
@@ -79,21 +72,15 @@ func (s *Server) handleLogin(c echo.Context) error {
 func (s *Server) handleGoogleLogin(c echo.Context) error {
 	state, err := generateOAuthState(32)
 	if err != nil {
-		return c.JSON(http.StatusInternalServerError, map[string]string{
-			"error": "internal error",
-		})
+		return RespondError(c, http.StatusInternalServerError, "internal error", err.Error(), err)
 	}
 
 	authURL, err := s.AuthService.GoogleAuthURL(state)
 	if err != nil {
 		if errors.Is(err, auth.ErrOAuthNotConfigured) {
-			return c.JSON(http.StatusNotImplemented, map[string]string{
-				"error": "oauth not configured",
-			})
+			return RespondError(c, http.StatusNotImplemented, "oauth not configured", err.Error(), err)
 		}
-		return c.JSON(http.StatusInternalServerError, map[string]string{
-			"error": "internal error",
-		})
+		return RespondError(c, http.StatusInternalServerError, "internal error", err.Error(), err)
 	}
 
 	c.SetCookie(&http.Cookie{
@@ -105,7 +92,7 @@ func (s *Server) handleGoogleLogin(c echo.Context) error {
 		MaxAge:   int((5 * time.Minute).Seconds()),
 	})
 
-	return c.JSON(http.StatusOK, map[string]string{
+	return RespondSuccess(c, http.StatusOK, map[string]string{
 		"auth_url": authURL,
 	})
 }
@@ -124,24 +111,18 @@ func (s *Server) handleGoogleCallback(c echo.Context) error {
 	code := c.QueryParam("code")
 	state := c.QueryParam("state")
 	if code == "" || state == "" {
-		return c.JSON(http.StatusBadRequest, map[string]string{
-			"error": "missing code or state",
-		})
+		return RespondError(c, http.StatusBadRequest, "missing code or state", "missing code or state", errs.Errorf(errs.EINVALID, "missing code or state"))
 	}
 
 	stateCookie, err := c.Cookie("oauth_state")
 	if err != nil || stateCookie == nil || stateCookie.Value != state {
-		return c.JSON(http.StatusUnauthorized, map[string]string{
-			"error": "invalid oauth state",
-		})
+		return RespondError(c, http.StatusUnauthorized, "invalid oauth state", "invalid oauth state", errs.Errorf(errs.EUNAUTHORIZED, "invalid oauth state"))
 	}
 
 	tokens, err := s.AuthService.LoginWithGoogle(c.Request().Context(), code)
 	if err != nil {
 		if errors.Is(err, auth.ErrOAuthNotConfigured) {
-			return c.JSON(http.StatusNotImplemented, map[string]string{
-				"error": "oauth not configured",
-			})
+			return RespondError(c, http.StatusNotImplemented, "oauth not configured", err.Error(), err)
 		}
 		if errors.Is(err, auth.ErrMissingCode) || errors.Is(err, auth.ErrMissingState) {
 			return c.JSON(http.StatusBadRequest, map[string]string{
@@ -153,9 +134,7 @@ func (s *Server) handleGoogleCallback(c echo.Context) error {
 				"error": "invalid oauth user",
 			})
 		}
-		return c.JSON(http.StatusInternalServerError, map[string]string{
-			"error": "internal error",
-		})
+		return RespondError(c, http.StatusInternalServerError, "internal error", err.Error(), err)
 	}
 
 	c.SetCookie(&http.Cookie{
@@ -166,7 +145,7 @@ func (s *Server) handleGoogleCallback(c echo.Context) error {
 		MaxAge:   -1,
 	})
 
-	return c.JSON(http.StatusOK, map[string]string{
+	return RespondSuccess(c, http.StatusOK, map[string]string{
 		"access_token":  tokens.AccessToken,
 		"refresh_token": tokens.RefreshToken,
 	})
@@ -199,24 +178,18 @@ func (s *Server) handleRefresh(c echo.Context) error {
 	var req RefreshRequest
 
 	if err := c.Bind(&req); err != nil {
-		return c.JSON(http.StatusBadRequest, map[string]string{
-			"error": "invalid request body",
-		})
+		return RespondError(c, http.StatusBadRequest, "invalid request body", err.Error(), err)
 	}
 
 	tokens, err := s.AuthService.Refresh(c.Request().Context(), req.RefreshToken)
 	if err != nil {
 		if errors.Is(err, auth.ErrInvalidRefreshToken) {
-			return c.JSON(http.StatusUnauthorized, map[string]string{
-				"error": "invalid refresh token",
-			})
+			return RespondError(c, http.StatusUnauthorized, "invalid refresh token", err.Error(), err)
 		}
-		return c.JSON(http.StatusInternalServerError, map[string]string{
-			"error": "internal error",
-		})
+		return RespondError(c, http.StatusInternalServerError, "internal error", err.Error(), err)
 	}
 
-	return c.JSON(http.StatusOK, map[string]string{
+	return RespondSuccess(c, http.StatusOK, map[string]string{
 		"access_token":  tokens.AccessToken,
 		"refresh_token": tokens.RefreshToken,
 	})

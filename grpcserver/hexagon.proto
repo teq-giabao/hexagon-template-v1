@@ -1,0 +1,31 @@
+syntax = "proto3";
+
+package hexagon.grpc;
+
+option go_package = "grpcserver/hexagonpb";
+
+message EchoRequest {
+  string message = 1;
+}
+
+message EchoResponse {
+  string message = 1;
+  int32 count = 2;
+}
+
+message StreamRequest {
+  string message = 1;
+  int32 count = 2;
+}
+
+message StreamResponse {
+  string message = 1;
+  int32 index = 2;
+}
+
+service DemoService {
+  rpc Unary(EchoRequest) returns (EchoResponse);
+  rpc ServerStream(StreamRequest) returns (stream StreamResponse);
+  rpc ClientStream(stream EchoRequest) returns (EchoResponse);
+  rpc BidiStream(stream EchoRequest) returns (stream StreamResponse);
+}

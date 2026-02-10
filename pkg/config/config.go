@@ -12,6 +12,7 @@ var Empty = new(Config)
 type Config struct {
 	AppEnv       string `envconfig:"APP_ENV"`
 	Port         int    `envconfig:"PORT"`
+	GRPCPort     int    `envconfig:"GRPC_PORT"`
 	SentryDSN    string `envconfig:"SENTRY_DSN"`
 	AllowOrigins string `envconfig:"ALLOW_ORIGINS"`
 
