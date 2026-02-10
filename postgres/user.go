@@ -61,6 +61,35 @@ func (r *UserRepository) CreateUser(ctx context.Context, u user.User) error {
 	return r.db.WithContext(ctx).Create(&model).Error
 }
 
+// CreateUserTx creates a new user and runs fn inside the same transaction.
+// If fn returns an error, the transaction is rolled back.
+func (r *UserRepository) CreateUserTx(ctx context.Context, u user.User, fn func(created user.User) error) (user.User, error) {
+	var created user.User
+	err := r.db.WithContext(ctx).Transaction(func(tx *gorm.DB) error {
+		model := UserModel{
+			Username: u.Username,
+			Email:    u.Email,
+			Password: u.Password,
+		}
+		if err := tx.Create(&model).Error; err != nil {
+			return err
+		}
+		created = user.User{
+			ID:       int64(model.ID),
+			Username: model.Username,
+			Email:    model.Email,
+			Password: model.Password,
+		}
+		if fn != nil {
+			if err := fn(created); err != nil {
+				return err
+			}
+		}
+		return nil
+	})
+	return created, err
+}
+
 // AllUsers fetches all users from the database
 func (r *UserRepository) AllUsers(ctx context.Context) ([]user.User, error) {
 	var models []UserModel
