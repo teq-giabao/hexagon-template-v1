@@ -39,26 +39,18 @@ func NewClient(ctx context.Context, opts Options) (*dynamodb.Client, error) {
 		))
 	}
 
-	if opts.Endpoint != "" {
-		loadOpts = append(loadOpts, awscfg.WithEndpointResolverWithOptions(
-			aws.EndpointResolverWithOptionsFunc(func(service, resolvedRegion string, options ...interface{}) (aws.Endpoint, error) {
-				if service == dynamodb.ServiceID {
-					return aws.Endpoint{
-						URL:           opts.Endpoint,
-						SigningRegion: region,
-					}, nil
-				}
-				return aws.Endpoint{}, &aws.EndpointNotFoundError{}
-			}),
-		))
-	}
-
 	cfg, err := awscfg.LoadDefaultConfig(ctx, loadOpts...)
 	if err != nil {
 		return nil, fmt.Errorf("dynamodb: load aws config: %w", err)
 	}
 
-	return dynamodb.NewFromConfig(cfg), nil
+	client := dynamodb.NewFromConfig(cfg, func(o *dynamodb.Options) {
+		if opts.Endpoint != "" {
+			o.BaseEndpoint = aws.String(opts.Endpoint)
+		}
+	})
+
+	return client, nil
 }
 
 func validateTable(table string) error {
