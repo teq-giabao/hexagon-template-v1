@@ -15,13 +15,15 @@ func TestKeepingTrackOfContact(t *testing.T) {
 	MigrateTestDatabase(t, db, "../migrations")
 	c := contact.Contact{Name: "Charlie", Phone: "3456789012"}
 	server := MustCreateServer(t, db)
+	token, err := signTestToken()
+	assert.NoError(t, err)
 
-	server.Router.ServeHTTP(httptest.NewRecorder(), newAddContactRequest(contact.Contact{Name: "Alice", Phone: "1234567890"}))
-	server.Router.ServeHTTP(httptest.NewRecorder(), newAddContactRequest(contact.Contact{Name: "Bob", Phone: "2345678901"}))
+	server.Router.ServeHTTP(httptest.NewRecorder(), newAddContactRequestWithAuth(contact.Contact{Name: "Alice", Phone: "1234567890"}, token))
+	server.Router.ServeHTTP(httptest.NewRecorder(), newAddContactRequestWithAuth(contact.Contact{Name: "Bob", Phone: "2345678901"}, token))
 
 	t.Run("add new contact", func(t *testing.T) {
 		rec := httptest.NewRecorder()
-		server.Router.ServeHTTP(rec, newAddContactRequest(c))
+		server.Router.ServeHTTP(rec, newAddContactRequestWithAuth(c, token))
 
 		assert.Equal(t, http.StatusCreated, rec.Code, "Expected 201 Created")
 	})

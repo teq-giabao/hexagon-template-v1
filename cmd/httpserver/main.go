@@ -7,6 +7,7 @@
 // @in header
 // @name Authorization
 // @description Type "Bearer" followed by a space and JWT token.
+// nolint: funlen
 package main
 
 import (
@@ -17,6 +18,7 @@ import (
 	"hexagon/pkg/config"
 	"hexagon/pkg/hashing"
 	"hexagon/pkg/jwt"
+	oauthgoogle "hexagon/pkg/oauth/google"
 	"hexagon/pkg/sentry"
 	"hexagon/postgres"
 	"hexagon/user"
@@ -69,6 +71,15 @@ func main() {
 		postgres.NewUserRepository(db),
 		hashing.NewBcryptHasher(),
 	)
+	googleProvider, err := oauthgoogle.NewProvider(
+		cfg.Auth.GoogleClientID,
+		cfg.Auth.GoogleClientSecret,
+		cfg.Auth.GoogleRedirectURL,
+	)
+	if err != nil {
+		slog.Error("Cannot init google oauth provider", "error", err)
+		os.Exit(1)
+	}
 	authService := auth.NewUsecase(
 		postgres.NewUserRepository(db),
 		postgres.NewLoginAttemptRepository(db),
@@ -78,6 +89,7 @@ func main() {
 			time.Duration(cfg.Auth.TokenTTL)*time.Second,
 			time.Duration(cfg.Auth.RefreshTTL)*time.Second,
 		),
+		googleProvider,
 	)
 	server := httpserver.Default(cfg)
 	server.JWTSecret = cfg.Auth.JWTSecret

@@ -1,3 +1,4 @@
+// nolint: funlen
 package config_test
 
 import (

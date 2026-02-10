@@ -1,3 +1,4 @@
+// nolint: funlen
 package httpserver_test
 
 import (
@@ -21,7 +22,7 @@ import (
 
 func TestDefault(t *testing.T) {
 	// Act
-	server := httpserver.Default()
+	server := httpserver.Default(testConfig())
 
 	// Assert
 	assert.NotNil(t, server.Router, "Router should be initialized")
@@ -31,7 +32,7 @@ func TestDefault(t *testing.T) {
 
 func TestServerStartAndShutdown(t *testing.T) {
 	// Arrange
-	server := httpserver.Default()
+	server := httpserver.Default(testConfig())
 	port := allocateRandomPort(t)
 	server.Addr = fmt.Sprintf(":%d", port)
 
@@ -46,7 +47,7 @@ func TestServerStartAndShutdown(t *testing.T) {
 
 func TestRegisterGlobalMiddlewares(t *testing.T) {
 	// Arrange
-	server := httpserver.Default()
+	server := httpserver.Default(testConfig())
 	addTestRoute(server)
 
 	// Act
@@ -102,7 +103,7 @@ func TestCORSConfiguration(t *testing.T) {
 
 func TestMiddlewareRecoveryBehavior(t *testing.T) {
 	// Arrange
-	server := httpserver.Default()
+	server := httpserver.Default(testConfig())
 	addPanicRoute(server)
 
 	// Act
@@ -184,7 +185,7 @@ func TestCustomErrorHandler(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			// Arrange
-			server := httpserver.Default()
+			server := httpserver.Default(testConfig())
 			addErrorRoute(server, tt.error)
 
 			// Act

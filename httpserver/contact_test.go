@@ -30,14 +30,16 @@ func (m *MockContactService) ListContacts(ctx context.Context) ([]contact.Contac
 }
 
 func TestAddContact(t *testing.T) {
-	server := httpserver.Default()
+	server := httpserver.Default(testConfig())
 	svc := new(MockContactService)
 	server.ContactService = svc
+	token, err := signTestToken()
+	assert.NoError(t, err)
 
 	t.Run("should returns 201 when added new contact", func(t *testing.T) {
 		c := contact.Contact{Name: "Jane Doe", Phone: "0987654321"}
 		svc.On("AddContact", mock.Anything, c).Return(nil).Once()
-		request := newAddContactRequest(c)
+		request := newAddContactRequestWithAuth(c, token)
 		recorder := httptest.NewRecorder()
 
 		server.Router.ServeHTTP(recorder, request)
@@ -49,7 +51,7 @@ func TestAddContact(t *testing.T) {
 	t.Run("should returns 400 when request is invalid", func(t *testing.T) {
 		c := contact.Contact{Phone: "0987654321"}
 		svc.On("AddContact", mock.Anything, c).Return(contact.ErrInvalidName).Once()
-		request := newAddContactRequest(c)
+		request := newAddContactRequestWithAuth(c, token)
 		recorder := httptest.NewRecorder()
 
 		server.Router.ServeHTTP(recorder, request)
@@ -60,6 +62,7 @@ func TestAddContact(t *testing.T) {
 
 	t.Run("should returns 400 when JSON is malformed", func(t *testing.T) {
 		request := malformedAddContactRequest()
+		request.Header.Set("Authorization", "Bearer "+token)
 		recorder := httptest.NewRecorder()
 
 		server.Router.ServeHTTP(recorder, request)
@@ -71,7 +74,7 @@ func TestAddContact(t *testing.T) {
 }
 
 func TestListContacts(t *testing.T) {
-	server := httpserver.Default()
+	server := httpserver.Default(testConfig())
 	svc := new(MockContactService)
 	server.ContactService = svc
 
@@ -109,5 +112,11 @@ func newAddContactRequest(c contact.Contact) *http.Request {
 	body := strings.NewReader(fmt.Sprintf(`{"name":"%s","phone":"%s"}`, c.Name, c.Phone))
 	request := httptest.NewRequest("POST", "/api/contacts", body)
 	request.Header.Set("Content-Type", "application/json")
+	return request
+}
+
+func newAddContactRequestWithAuth(c contact.Contact, token string) *http.Request {
+	request := newAddContactRequest(c)
+	request.Header.Set("Authorization", "Bearer "+token)
 	return request
 }

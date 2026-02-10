@@ -24,9 +24,12 @@ type Config struct {
 		EnableSSL bool   `envconfig:"ENABLE_SSL"`
 	}
 	Auth struct {
-		JWTSecret  string `envconfig:"AUTH_JWT_SECRET"`
-		TokenTTL   int    `envconfig:"AUTH_TOKEN_TTL"`
-		RefreshTTL int    `envconfig:"AUTH_REFRESH_TTL"`
+		JWTSecret          string `envconfig:"AUTH_JWT_SECRET"`
+		TokenTTL           int    `envconfig:"AUTH_TOKEN_TTL"`
+		RefreshTTL         int    `envconfig:"AUTH_REFRESH_TTL"`
+		GoogleClientID     string `envconfig:"AUTH_GOOGLE_CLIENT_ID"`
+		GoogleClientSecret string `envconfig:"AUTH_GOOGLE_CLIENT_SECRET"`
+		GoogleRedirectURL  string `envconfig:"AUTH_GOOGLE_REDIRECT_URL"`
 	}
 }
 
