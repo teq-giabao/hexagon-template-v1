@@ -2,6 +2,7 @@ package httpserver_test
 
 import (
 	"encoding/json"
+	"hexagon/httpserver"
 	"hexagon/pkg/config"
 	"net/http/httptest"
 	"time"
@@ -27,16 +28,17 @@ func signTestToken() (string, error) {
 	return t.SignedString([]byte(testJWTSecret))
 }
 
-type apiResponse struct {
-	Code    string          `json:"code"`
-	Message string          `json:"message"`
-	Result  json.RawMessage `json:"result"`
-	Info    string          `json:"info"`
-}
+type apiResponse = httpserver.APIResponse
 
 func decodeAPIResponse(t require.TestingT, rec *httptest.ResponseRecorder) apiResponse {
 	var resp apiResponse
 	err := json.Unmarshal(rec.Body.Bytes(), &resp)
 	require.NoError(t, err)
 	return resp
+}
+
+func decodeAPIResult(t require.TestingT, result interface{}, target interface{}) {
+	data, err := json.Marshal(result)
+	require.NoError(t, err)
+	require.NoError(t, json.Unmarshal(data, target))
 }

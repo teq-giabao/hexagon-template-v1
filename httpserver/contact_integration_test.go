@@ -1,7 +1,6 @@
 package httpserver_test
 
 import (
-	"encoding/json"
 	"hexagon/contact"
 	"net/http"
 	"net/http/httptest"
@@ -44,8 +43,7 @@ func assertAddedContact(t *testing.T, rec *httptest.ResponseRecorder, c contact.
 	var result struct {
 		Data []contact.Contact `json:"data"`
 	}
-	err := json.Unmarshal(resp.Result, &result)
-	assert.NoError(t, err, "Failed to decode response")
+	decodeAPIResult(t, resp.Result, &result)
 	assert.Len(t, result.Data, 3, "Expected 3 contacts in the list")
 	assert.Contains(t, result.Data, c, "Expected contact list to contain the newly added contact")
 }
