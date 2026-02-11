@@ -43,7 +43,7 @@ func Default(cfg *config.Config) *Server {
 		AllowOrigins: []string{"*"},
 	}
 
-	s.Router.Validator = NewValidator()
+	s.Router.Validator = NewAppValidator()
 	s.Router.HTTPErrorHandler = customHTTPErrorHandler
 	s.RegisterGlobalMiddlewares()
 	api := s.Router.Group("/api")
@@ -126,10 +126,10 @@ func customHTTPErrorHandler(err error, c echo.Context) {
 	// Don't write response if already committed
 	if !c.Response().Committed {
 		info := err.Error()
-		if code == http.StatusInternalServerError {
-			info = err.Error()
+		if code >= http.StatusInternalServerError {
+			c.Logger().Error(err)
 		}
-		err = writeError(c, code, message, info, err)
+		err = RespondError(c, code, message, info, err)
 		if err != nil {
 			c.Logger().Error(err)
 		}

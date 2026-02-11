@@ -41,7 +41,7 @@ func (s *Server) handleAddContact(c echo.Context) error {
 		return err
 	}
 
-	return writeSuccess(c, http.StatusCreated, map[string]string{
+	return RespondSuccess(c, http.StatusCreated, map[string]string{
 		"status": "created",
 	})
 }
@@ -60,5 +60,5 @@ func (s *Server) handleListContacts(c echo.Context) error {
 		return err
 	}
 
-	return writeList(c, http.StatusOK, contacts)
+	return RespondList(c, http.StatusOK, contacts)
 }

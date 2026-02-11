@@ -11,11 +11,11 @@ import (
 
 var phonePattern = regexp.MustCompile(`^[0-9]{10}$`)
 
-type CustomValidator struct {
+type AppValidator struct {
 	validate *validator.Validate
 }
 
-func NewValidator() *CustomValidator {
+func NewAppValidator() *AppValidator {
 	v := validator.New()
 	v.RegisterTagNameFunc(func(fld reflect.StructField) string {
 		name := strings.SplitN(fld.Tag.Get("json"), ",", 2)[0]
@@ -27,19 +27,23 @@ func NewValidator() *CustomValidator {
 		}
 		return name
 	})
-	_ = v.RegisterValidation("phone", validatePhone)
-	_ = v.RegisterValidation("password", validatePassword)
-	return &CustomValidator{validate: v}
+	_ = v.RegisterValidation("phone", isPhoneNumberVN10Digits)
+	_ = v.RegisterValidation("password", isPasswordMin12CharsWithUpperLowerNumberSpecial)
+	return &AppValidator{validate: v}
 }
 
-func (cv *CustomValidator) Validate(i interface{}) error {
+func (cv *AppValidator) Validate(i interface{}) error {
 	if err := cv.validate.Struct(i); err != nil {
 		return errs.Errorf(errs.EINVALID, "%s", formatValidationError(err))
 	}
 	return nil
 }
 
-func validatePhone(fl validator.FieldLevel) bool {
+// isPhoneNumberVN10Digits validates Vietnamese phone number format.
+// Requirements:
+// - Must be exactly 10 digits
+// - Contains only numeric characters (0-9)
+func isPhoneNumberVN10Digits(fl validator.FieldLevel) bool {
 	if fl.Field().Kind() != reflect.String {
 		return false
 	}
@@ -47,7 +51,14 @@ func validatePhone(fl validator.FieldLevel) bool {
 	return phonePattern.MatchString(value)
 }
 
-func validatePassword(fl validator.FieldLevel) bool {
+// isPasswordMin12CharsWithUpperLowerNumberSpecial validates password strength.
+// Requirements:
+// - Minimum 12 characters in length
+// - Must contain at least one lowercase letter (a-z)
+// - Must contain at least one uppercase letter (A-Z)
+// - Must contain at least one number (0-9)
+// - Must contain at least one special character
+func isPasswordMin12CharsWithUpperLowerNumberSpecial(fl validator.FieldLevel) bool {
 	if fl.Field().Kind() != reflect.String {
 		return false
 	}
