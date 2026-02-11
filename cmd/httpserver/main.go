@@ -18,6 +18,7 @@ import (
 	"hexagon/dynamodb"
 	"hexagon/grpcserver"
 	"hexagon/httpserver"
+	"hexagon/movie"
 	"hexagon/pkg/config"
 	"hexagon/pkg/hashing"
 	"hexagon/pkg/jwt"
@@ -66,6 +67,7 @@ func main() {
 		contactService contact.Service
 		userService    user.Service
 		authService    auth.Service
+		movieService   movie.Service
 	)
 
 	googleProvider, err := oauthgoogle.NewProvider(
@@ -131,6 +133,7 @@ func main() {
 		attemptRepo := postgres.NewLoginAttemptRepository(db)
 
 		contactService = contact.NewUsecase(postgres.NewContactRepository(db))
+		movieService = movie.NewUsecase(postgres.NewMovieRepository(db))
 		userService = user.NewUsecase(
 			userRepo,
 			hashing.NewBcryptHasher(),
@@ -150,6 +153,7 @@ func main() {
 	server := httpserver.Default(cfg)
 	server.JWTSecret = cfg.Auth.JWTSecret
 	server.ContactService = contactService
+	server.MovieService = movieService
 	server.UserService = userService
 	server.AuthService = authService
 	server.Addr = fmt.Sprintf(":%d", cfg.Port)

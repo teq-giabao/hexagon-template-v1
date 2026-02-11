@@ -13,6 +13,9 @@ definitions:
         type: string
       phone:
         type: string
+    required:
+    - name
+    - phone
     type: object
   httpserver.AddUserRequest:
     properties:
@@ -21,13 +24,41 @@ definitions:
       password:
         type: string
       username:
+        maxLength: 50
+        minLength: 3
         type: string
+    required:
+    - email
+    - password
+    - username
     type: object
   httpserver.LoginRequest:
     properties:
       email:
         type: string
       password:
+        type: string
+    required:
+    - email
+    - password
+    type: object
+  httpserver.RefreshRequest:
+    properties:
+      refresh_token:
+        description: 'nolint: tagliatelle'
+        type: string
+    required:
+    - refresh_token
+    type: object
+  movie.Movie:
+    properties:
+      genres:
+        type: string
+      movie_id:
+        type: integer
+      plot_summary:
+        type: string
+      title:
         type: string
     type: object
   user.User:
@@ -49,11 +80,65 @@ info:
   title: Hexagon API
   version: "1.0"
 paths:
+  /api/auth/google/callback:
+    get:
+      description: Exchange Google OAuth2 code for tokens
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+        "400":
+          description: Bad Request
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+        "401":
+          description: Unauthorized
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+        "500":
+          description: Internal Server Error
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+      summary: Google OAuth Callback
+      tags:
+      - auth
+  /api/auth/google/login:
+    get:
+      description: Get Google OAuth2 authorization URL
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+        "500":
+          description: Internal Server Error
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+      summary: Google OAuth Login
+      tags:
+      - auth
   /api/auth/login:
     post:
       consumes:
       - application/json
-      description: Authenticate user and return JWT token
+      description: Authenticate user and return access + refresh tokens
       parameters:
       - description: Login Credentials
         in: body
@@ -89,6 +174,48 @@ paths:
               type: string
             type: object
       summary: User Login
+      tags:
+      - auth
+  /api/auth/refresh:
+    post:
+      consumes:
+      - application/json
+      description: Refresh access token using refresh token
+      parameters:
+      - description: Refresh Token
+        in: body
+        name: refresh
+        required: true
+        schema:
+          $ref: '#/definitions/httpserver.RefreshRequest'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+        "400":
+          description: Bad Request
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+        "401":
+          description: Unauthorized
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+        "500":
+          description: Internal Server Error
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+      summary: Refresh Access Token
       tags:
       - auth
   /api/contacts:
@@ -153,6 +280,43 @@ paths:
       summary: Create Contact
       tags:
       - contacts
+  /api/movies/search:
+    get:
+      description: Full-text search movies by title/genres
+      parameters:
+      - description: Search query
+        in: query
+        name: q
+        required: true
+        type: string
+      - description: Max results (1-100), default 20
+        in: query
+        name: limit
+        type: integer
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            items:
+              $ref: '#/definitions/movie.Movie'
+            type: array
+        "400":
+          description: Bad Request
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+        "500":
+          description: Internal Server Error
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+      summary: Search Movies
+      tags:
+      - movies
   /api/users:
     get:
       description: Get all users

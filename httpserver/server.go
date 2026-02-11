@@ -6,6 +6,7 @@ import (
 	"hexagon/auth"
 	"hexagon/contact"
 	"hexagon/errs"
+	"hexagon/movie"
 	"hexagon/pkg/config"
 	"hexagon/user"
 	"net/http"
@@ -32,6 +33,8 @@ type Server struct {
 	UserService user.Service
 
 	AuthService auth.Service
+
+	MovieService movie.Service
 
 	JWTSecret string
 }
@@ -139,6 +142,7 @@ func customHTTPErrorHandler(err error, c echo.Context) {
 func (s *Server) RegisterPublicRoutes(g *echo.Group) {
 	// public part of contacts
 	s.RegisterPublicContactRoutes(g)
+	s.RegisterPublicMovieRoutes(g)
 
 	// other public modules
 	// s.RegisterHealthRoutes()

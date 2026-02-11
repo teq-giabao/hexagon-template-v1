@@ -11,6 +11,7 @@ A Go REST API project following Hexagonal Architecture principles, featuring con
 - [Configuration](#configuration)
 - [Running the Server](#running-the-server)
 - [Database Migrations](#database-migrations)
+- [Movie Full-Text Search](#movie-full-text-search)
 - [Testing](#testing)
 - [Linting](#linting)
 - [Docker](#docker)
@@ -216,6 +217,41 @@ sql-migrate new -env="development" create-your-migration-name
 ```
 
 This creates a new file in `migrations/` with timestamp prefix (e.g., `20260122111217-create-contacts-table.sql`).
+
+---
+
+## Movie Full-Text Search
+
+This project includes a PostgreSQL full-text search example for movies using the MovieLens "latest small" dataset.
+
+### Setup
+
+1. Run migrations:
+   ```shell
+   make db/migrate
+   ```
+
+2. Seed movies (downloads and imports the dataset):
+   ```shell
+   go run ./cmd/movieseed
+   ```
+
+Optional flags:
+- `-url` (default MovieLens zip)
+- `-csv` path to local `movies.csv`
+- `-limit` number of rows to import
+
+### Search API
+
+```shell
+curl "http://localhost:8088/api/movies/search?q=toy+stori&limit=10"
+```
+
+
+Dataset source (MovieLens latest small):
+```text
+https://files.grouplens.org/datasets/movielens/ml-latest-small.zip
+```
 
 ---
 
