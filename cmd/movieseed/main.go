@@ -177,24 +177,9 @@ func importMovies(ctx context.Context, db *gorm.DB, csvPath string, limit int) (
 	reader := csv.NewReader(file)
 	reader.FieldsPerRecord = -1
 
-	header, err := reader.Read()
+	idxMovieID, idxTitle, idxGenres, err := parseMovieCSVHeader(reader)
 	if err != nil {
 		return 0, err
-	}
-
-	idxMovieID, idxTitle, idxGenres := -1, -1, -1
-	for i, name := range header {
-		switch strings.TrimSpace(name) {
-		case "movieId":
-			idxMovieID = i
-		case "title":
-			idxTitle = i
-		case "genres":
-			idxGenres = i
-		}
-	}
-	if idxMovieID == -1 || idxTitle == -1 || idxGenres == -1 {
-		return 0, errors.New("missing required columns in csv header")
 	}
 
 	stmt := `
@@ -211,11 +196,7 @@ ON CONFLICT (movie_id) DO UPDATE SET
 	}
 
 	count := 0
-	for {
-		if limit > 0 && count >= limit {
-			break
-		}
-
+	for limit <= 0 || count < limit {
 		record, err := reader.Read()
 		if errors.Is(err, io.EOF) {
 			break
@@ -224,16 +205,10 @@ ON CONFLICT (movie_id) DO UPDATE SET
 			_ = tx.Rollback()
 			return count, err
 		}
-		if idxMovieID >= len(record) || idxTitle >= len(record) || idxGenres >= len(record) {
+		movieID, title, genres, ok := parseMovieRecord(record, idxMovieID, idxTitle, idxGenres)
+		if !ok {
 			continue
 		}
-
-		movieID, err := strconv.Atoi(strings.TrimSpace(record[idxMovieID]))
-		if err != nil {
-			continue
-		}
-		title := strings.TrimSpace(record[idxTitle])
-		genres := strings.TrimSpace(record[idxGenres])
 
 		if err := tx.Exec(stmt, movieID, title, genres).Error; err != nil {
 			_ = tx.Rollback()
@@ -248,4 +223,42 @@ ON CONFLICT (movie_id) DO UPDATE SET
 	}
 
 	return count, nil
+}
+
+func parseMovieCSVHeader(reader *csv.Reader) (int, int, int, error) {
+	header, err := reader.Read()
+	if err != nil {
+		return 0, 0, 0, err
+	}
+
+	idxMovieID, idxTitle, idxGenres := -1, -1, -1
+	for i, name := range header {
+		switch strings.TrimSpace(name) {
+		case "movieId":
+			idxMovieID = i
+		case "title":
+			idxTitle = i
+		case "genres":
+			idxGenres = i
+		}
+	}
+	if idxMovieID == -1 || idxTitle == -1 || idxGenres == -1 {
+		return 0, 0, 0, errors.New("missing required columns in csv header")
+	}
+
+	return idxMovieID, idxTitle, idxGenres, nil
+}
+
+func parseMovieRecord(record []string, idxMovieID, idxTitle, idxGenres int) (int, string, string, bool) {
+	if idxMovieID >= len(record) || idxTitle >= len(record) || idxGenres >= len(record) {
+		return 0, "", "", false
+	}
+
+	movieID, err := strconv.Atoi(strings.TrimSpace(record[idxMovieID]))
+	if err != nil {
+		return 0, "", "", false
+	}
+	title := strings.TrimSpace(record[idxTitle])
+	genres := strings.TrimSpace(record[idxGenres])
+	return movieID, title, genres, true
 }
