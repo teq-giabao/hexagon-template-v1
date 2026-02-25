@@ -2,7 +2,6 @@ package httpserver_test
 
 import (
 	"context"
-	"hexagon/contact"
 	"hexagon/httpserver"
 	"hexagon/postgres"
 	"testing"
@@ -20,10 +19,7 @@ import (
 func MustCreateServer(t testing.TB, db *gorm.DB) *httpserver.Server {
 	t.Helper()
 
-	contactService := contact.NewUsecase(postgres.NewContactRepository(db))
-
 	server := httpserver.Default(testConfig())
-	server.ContactService = contactService
 
 	return server
 }

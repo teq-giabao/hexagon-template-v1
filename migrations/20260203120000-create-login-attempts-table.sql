@@ -2,7 +2,7 @@
 CREATE TABLE login_attempts (
     email VARCHAR(255) PRIMARY KEY,
     failed_count INTEGER NOT NULL DEFAULT 0,
-    jailed_until TIMESTAMP NULL
+    jailed_until TIMESTAMPTZ NULL
 );
 
 -- +migrate Down

@@ -13,7 +13,6 @@ package main
 import (
 	"fmt"
 	"hexagon/auth"
-	"hexagon/contact"
 	"hexagon/httpserver"
 	"hexagon/pkg/config"
 	"hexagon/pkg/hashing"
@@ -66,7 +65,6 @@ func main() {
 		os.Exit(1)
 	}
 
-	contactService := contact.NewUsecase(postgres.NewContactRepository(db))
 	userService := user.NewUsecase(
 		postgres.NewUserRepository(db),
 		hashing.NewBcryptHasher(),
@@ -93,7 +91,6 @@ func main() {
 	)
 	server := httpserver.Default(cfg)
 	server.JWTSecret = cfg.Auth.JWTSecret
-	server.ContactService = contactService
 	server.UserService = userService
 	server.AuthService = authService
 	server.Addr = fmt.Sprintf(":%d", cfg.Port)

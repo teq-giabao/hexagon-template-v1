@@ -3,7 +3,6 @@ package httpserver
 import (
 	"context"
 	"hexagon/auth"
-	"hexagon/contact"
 	"hexagon/errs"
 	"hexagon/pkg/config"
 	"hexagon/user"
@@ -24,9 +23,6 @@ type Server struct {
 
 	// Allowed origins for CORS
 	AllowOrigins []string
-
-	// Application services (usecases)
-	ContactService contact.Service
 
 	UserService user.Service
 
@@ -132,7 +128,6 @@ func customHTTPErrorHandler(err error, c echo.Context) {
 
 func (s *Server) RegisterPublicRoutes(g *echo.Group) {
 	// public part of contacts
-	s.RegisterPublicContactRoutes(g)
 
 	// other public modules
 	// s.RegisterHealthRoutes()
@@ -142,6 +137,6 @@ func (s *Server) RegisterPublicRoutes(g *echo.Group) {
 }
 
 func (s *Server) RegisterPrivateRoutes(g *echo.Group) {
-	s.RegisterPrivateContactRoutes(g)
+	// s.RegisterPrivateContactRoutes(g)
 }
 
