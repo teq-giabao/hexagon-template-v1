@@ -33,6 +33,9 @@ func (s *Server) handleAddContact(c echo.Context) error {
 	if err := c.Bind(&req); err != nil {
 		return errs.Errorf(errs.EINVALID, "invalid request body")
 	}
+	if err := c.Validate(&req); err != nil {
+		return err
+	}
 
 	if err := s.ContactService.AddContact(c.Request().Context(), req.ToContact()); err != nil {
 		return err

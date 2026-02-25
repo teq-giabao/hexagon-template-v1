@@ -38,6 +38,9 @@ func (s *Server) handleLogin(c echo.Context) error {
 	if err := c.Bind(&req); err != nil {
 		return RespondError(c, http.StatusBadRequest, "invalid request body", err.Error(), err)
 	}
+	if err := c.Validate(&req); err != nil {
+		return err
+	}
 
 	tokens, err := s.AuthService.Login(
 		c.Request().Context(),
@@ -179,6 +182,9 @@ func (s *Server) handleRefresh(c echo.Context) error {
 
 	if err := c.Bind(&req); err != nil {
 		return RespondError(c, http.StatusBadRequest, "invalid request body", err.Error(), err)
+	}
+	if err := c.Validate(&req); err != nil {
+		return err
 	}
 
 	tokens, err := s.AuthService.Refresh(c.Request().Context(), req.RefreshToken)

@@ -52,7 +52,6 @@ func TestAddContact(t *testing.T) {
 
 	t.Run("should returns 400 when request is invalid", func(t *testing.T) {
 		c := contact.Contact{Phone: "0987654321"}
-		svc.On("AddContact", mock.Anything, c).Return(contact.ErrInvalidName).Once()
 		request := newAddContactRequestWithAuth(c, token)
 		recorder := httptest.NewRecorder()
 
@@ -61,7 +60,20 @@ func TestAddContact(t *testing.T) {
 		assert.Equal(t, http.StatusBadRequest, recorder.Code, "Expected 400 Bad Request")
 		resp := decodeAPIResponse(t, recorder)
 		assert.Equal(t, "100010", resp.Code)
-		svc.AssertExpectations(t)
+		svc.AssertNotCalled(t, "AddContact")
+	})
+
+	t.Run("should returns 400 when phone format is invalid", func(t *testing.T) {
+		c := contact.Contact{Name: "Jane Doe", Phone: "invalid"}
+		request := newAddContactRequestWithAuth(c, token)
+		recorder := httptest.NewRecorder()
+
+		server.Router.ServeHTTP(recorder, request)
+
+		assert.Equal(t, http.StatusBadRequest, recorder.Code, "Expected 400 Bad Request")
+		resp := decodeAPIResponse(t, recorder)
+		assert.Equal(t, "100010", resp.Code)
+		svc.AssertNotCalled(t, "AddContact")
 	})
 
 	t.Run("should returns 400 when JSON is malformed", func(t *testing.T) {
