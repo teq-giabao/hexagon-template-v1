@@ -132,7 +132,7 @@ func (uc *Usecase) Login(ctx context.Context, email, password string) (TokenPair
 	}
 
 	// Compare password
-	if err := uc.passwordHasher.Compare(u.Password, password); err != nil {
+	if err := uc.passwordHasher.Compare(u.PasswordHash, password); err != nil {
 		if err := uc.recordFailure(ctx, email, attempt); err != nil {
 			return TokenPair{}, err
 		}
@@ -239,7 +239,7 @@ func (uc *Usecase) getOrCreateUserFromOAuth(ctx context.Context, oauthUser OAuth
 	if err == nil {
 		return u, TokenPair{}, false, nil
 	}
-	if !errors.Is(err, user.ErrInvalidEmail) {
+	if !errors.Is(err, user.ErrUserNotFound) {
 		return user.User{}, TokenPair{}, false, err
 	}
 
@@ -251,14 +251,19 @@ func (uc *Usecase) getOrCreateUserFromOAuth(ctx context.Context, oauthUser OAuth
 	if err != nil {
 		return user.User{}, TokenPair{}, false, err
 	}
-	username, err := generateRandomUsername(16)
-	if err != nil {
-		return user.User{}, TokenPair{}, false, err
+	name := strings.TrimSpace(oauthUser.Name)
+	if name == "" {
+		name, err = generateRandomName(16)
+		if err != nil {
+			return user.User{}, TokenPair{}, false, err
+		}
 	}
 	newUser := user.User{
-		Username: username,
-		Email:    oauthUser.Email,
-		Password: hashed,
+		Name:         name,
+		Email:        oauthUser.Email,
+		PasswordHash: hashed,
+		Role:         user.UserRoleUser,
+		Status:       user.UserStatusActive,
 	}
 
 	var tokens TokenPair
@@ -304,13 +309,13 @@ func generateRandomPassword(length int) (string, error) {
 	return base64.RawURLEncoding.EncodeToString(buf), nil
 }
 
-func generateRandomUsername(length int) (string, error) {
+func generateRandomName(length int) (string, error) {
 	if length <= 0 {
-		return "", errors.New("invalid username length")
+		return "", errors.New("invalid name length")
 	}
 	buf := make([]byte, length)
 	if _, err := rand.Read(buf); err != nil {
 		return "", err
 	}
-	return "u_" + base64.RawURLEncoding.EncodeToString(buf), nil
+	return "user_" + base64.RawURLEncoding.EncodeToString(buf), nil
 }
