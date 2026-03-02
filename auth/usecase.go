@@ -153,26 +153,9 @@ func (uc *Usecase) Login(ctx context.Context, email, password string) (TokenPair
 		return TokenPair{}, ErrInvalidCredentials
 	}
 
-	if u.Status == user.UserStatusLocked && u.LockUntil != nil {
-		if u.LockUntil.After(now) {
-			return TokenPair{}, ErrAccountLocked
-		}
-		// Unlock account when lock window has passed.
-		if err := uc.userRepo.UpdateAuthState(
-			ctx,
-			u.ID,
-			0,
-			nil,
-			u.LockEscalationLevel,
-			nil,
-			user.UserStatusActive,
-		); err != nil {
-			return TokenPair{}, err
-		}
-		u.Status = user.UserStatusActive
-		u.LockUntil = nil
-		u.FailedLoginAttempts = 0
-		u.LastFailedLoginAt = nil
+	u, err = uc.handleLockState(ctx, u, now)
+	if err != nil {
+		return TokenPair{}, err
 	}
 
 	// Compare password
@@ -183,6 +166,21 @@ func (uc *Usecase) Login(ctx context.Context, email, password string) (TokenPair
 		return TokenPair{}, ErrInvalidCredentials
 	}
 
+	if err := uc.resetAuthState(ctx, u); err != nil {
+		return TokenPair{}, err
+	}
+
+	return uc.issueTokens(u)
+}
+
+func (uc *Usecase) handleLockState(ctx context.Context, u user.User, now time.Time) (user.User, error) {
+	if u.Status != user.UserStatusLocked || u.LockUntil == nil {
+		return u, nil
+	}
+	if u.LockUntil.After(now) {
+		return user.User{}, ErrAccountLocked
+	}
+
 	if err := uc.userRepo.UpdateAuthState(
 		ctx,
 		u.ID,
@@ -190,11 +188,30 @@ func (uc *Usecase) Login(ctx context.Context, email, password string) (TokenPair
 		nil,
 		u.LockEscalationLevel,
 		nil,
-		u.Status,
+		user.UserStatusActive,
 	); err != nil {
-		return TokenPair{}, err
+		return user.User{}, err
 	}
+	u.Status = user.UserStatusActive
+	u.LockUntil = nil
+	u.FailedLoginAttempts = 0
+	u.LastFailedLoginAt = nil
+	return u, nil
+}
 
+func (uc *Usecase) resetAuthState(ctx context.Context, u user.User) error {
+	return uc.userRepo.UpdateAuthState(
+		ctx,
+		u.ID,
+		0,
+		nil,
+		u.LockEscalationLevel,
+		nil,
+		u.Status,
+	)
+}
+
+func (uc *Usecase) issueTokens(u user.User) (TokenPair, error) {
 	accessToken, err := uc.tokenProvider.GenerateAccessToken(u)
 	if err != nil {
 		return TokenPair{}, err
