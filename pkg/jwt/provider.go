@@ -78,6 +78,31 @@ func (p *JWTProvider) GenerateRefreshToken(u user.User) (string, error) {
 }
 
 func (p *JWTProvider) ParseRefreshToken(refreshToken string) (user.User, error) {
+	claims, err := p.parseTokenClaims(refreshToken)
+	if err != nil {
+		return user.User{}, err
+	}
+	if err := p.validateRefreshClaims(claims); err != nil {
+		return user.User{}, err
+	}
+
+	userID, err := userIDFromClaims(claims)
+	if err != nil {
+		return user.User{}, err
+	}
+	email, err := emailFromClaims(claims)
+	if err != nil {
+		return user.User{}, err
+	}
+
+	return user.User{
+		ID:    userID,
+		Email: email,
+		Role:  user.UserRole(roleFromClaims(claims)),
+	}, nil
+}
+
+func (p *JWTProvider) parseTokenClaims(refreshToken string) (jwt.MapClaims, error) {
 	token, err := jwt.Parse(refreshToken, func(t *jwt.Token) (interface{}, error) {
 		if _, ok := t.Method.(*jwt.SigningMethodHMAC); !ok {
 			return nil, errors.New("unexpected signing method")
@@ -85,30 +110,36 @@ func (p *JWTProvider) ParseRefreshToken(refreshToken string) (user.User, error) 
 		return []byte(p.Secret), nil
 	})
 	if err != nil || !token.Valid {
-		return user.User{}, errors.New("invalid token")
+		return nil, errors.New("invalid token")
 	}
 
 	claims, ok := token.Claims.(jwt.MapClaims)
 	if !ok {
-		return user.User{}, errors.New("invalid token claims")
+		return nil, errors.New("invalid token claims")
 	}
 	if err := claims.Valid(); err != nil {
-		return user.User{}, errors.New("token expired")
+		return nil, errors.New("token expired")
 	}
+	return claims, nil
+}
 
+func (p *JWTProvider) validateRefreshClaims(claims jwt.MapClaims) error {
 	if claimType, ok := claims["type"].(string); !ok || claimType != "refresh" {
-		return user.User{}, errors.New("invalid token type")
+		return errors.New("invalid token type")
 	}
 	if iss, ok := claims["iss"].(string); !ok || iss != p.Issuer {
-		return user.User{}, errors.New("invalid token issuer")
+		return errors.New("invalid token issuer")
 	}
 	if aud, ok := claims["aud"].(string); !ok || aud != p.Audience {
-		return user.User{}, errors.New("invalid token audience")
+		return errors.New("invalid token audience")
 	}
 	if jti, ok := claims["jti"].(string); !ok || jti == "" {
-		return user.User{}, errors.New("invalid token id")
+		return errors.New("invalid token id")
 	}
+	return nil
+}
 
+func userIDFromClaims(claims jwt.MapClaims) (string, error) {
 	userID, ok := claims["sub"].(string)
 	if !ok || userID == "" {
 		if v, fallbackOK := claims["user_id"].(string); fallbackOK && v != "" {
@@ -117,19 +148,17 @@ func (p *JWTProvider) ParseRefreshToken(refreshToken string) (user.User, error) 
 		}
 	}
 	if !ok || userID == "" {
-		return user.User{}, errors.New("invalid user id")
+		return "", errors.New("invalid user id")
 	}
+	return userID, nil
+}
 
+func emailFromClaims(claims jwt.MapClaims) (string, error) {
 	email, ok := claims["email"].(string)
 	if !ok || email == "" {
-		return user.User{}, errors.New("invalid email")
+		return "", errors.New("invalid email")
 	}
-
-	return user.User{
-		ID:    userID,
-		Email: email,
-		Role:  user.UserRole(roleFromClaims(claims)),
-	}, nil
+	return email, nil
 }
 
 func roleFromClaims(claims jwt.MapClaims) string {
