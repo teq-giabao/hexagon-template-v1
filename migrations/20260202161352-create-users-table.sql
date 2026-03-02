@@ -10,11 +10,11 @@ CREATE TABLE users (
     role VARCHAR(32) NOT NULL DEFAULT 'user',
     status VARCHAR(32) NOT NULL DEFAULT 'active',
     failed_login_attempts INT NOT NULL DEFAULT 0,
-    lock_until TIMESTAMP,
+    lock_until TIMESTAMPTZ,
     lock_escalation_level INT NOT NULL DEFAULT 0,
-    last_failed_login_at TIMESTAMP,
-    created_at TIMESTAMP NOT NULL DEFAULT NOW(),
-    updated_at TIMESTAMP NOT NULL DEFAULT NOW()
+    last_failed_login_at TIMESTAMPTZ,
+    created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+    updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
 );
 
 -- +migrate Down

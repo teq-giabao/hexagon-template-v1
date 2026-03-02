@@ -116,6 +116,7 @@ func (p *Provider) Exchange(ctx context.Context, code string) (auth.OAuthUser, e
 	}
 
 	var payload struct {
+		ID            string       `json:"id"`
 		Email         string       `json:"email"`
 		Name          string       `json:"name"`
 		VerifiedEmail flexibleBool `json:"verified_email"` // nolint: tagliatelle
@@ -125,8 +126,9 @@ func (p *Provider) Exchange(ctx context.Context, code string) (auth.OAuthUser, e
 	}
 
 	return auth.OAuthUser{
-		Email:         payload.Email,
-		Name:          payload.Name,
-		EmailVerified: bool(payload.VerifiedEmail),
+		ProviderUserID: payload.ID,
+		Email:          payload.Email,
+		Name:           payload.Name,
+		EmailVerified:  bool(payload.VerifiedEmail),
 	}, nil
 }

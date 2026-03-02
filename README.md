@@ -146,6 +146,17 @@ DB_PASS=123456
 DB_PORT=33062
 DB_NAME=teqlocal
 ENABLE_SSL=false
+
+AUTH_JWT_SECRET=your-jwt-secret
+AUTH_TOKEN_TTL=60
+AUTH_REFRESH_TTL=2592000
+AUTH_GOOGLE_CLIENT_ID=your-google-client-id
+AUTH_GOOGLE_CLIENT_SECRET=your-google-client-secret
+AUTH_GOOGLE_REDIRECT_URL=http://localhost:8088/api/auth/google/callback
+AUTH_RESET_PASSWORD_URL=http://localhost:3000/reset-password
+AUTH_RESEND_API_KEY=re_xxxxxxxxx
+AUTH_RESEND_FROM_EMAIL=onboarding@resend.dev
+AUTH_RESEND_FROM_NAME=Hexagon Hotel
 ```
 
 ### Configuration Loading
@@ -180,10 +191,20 @@ userRepo := postgres.NewUserRepository(db)
 
 // 3. Create use cases
 userService := user.NewUsecase(userRepo, hashing.NewBcryptHasher())
-authService := auth.NewUsecase(userRepo, postgres.NewLoginAttemptRepository(db), ...)
+authService := auth.NewUsecase(
+    userRepo,
+    postgres.NewOAuthProviderAccountRepository(db),
+    postgres.NewRefreshTokenRepository(db),
+    postgres.NewPasswordResetTokenRepository(db),
+    hashing.NewBcryptHasher(),
+    jwtProvider,
+    googleProvider,
+    resetMailer,
+    cfg.Auth.ResetPasswordURL,
+)
 
 // 4. Inject into server
-server := httpserver.Default()
+server := httpserver.Default(cfg)
 server.UserService = userService
 server.AuthService = authService
 server.Addr = fmt.Sprintf(":%d", cfg.Port)

@@ -3,6 +3,7 @@ package user
 import (
 	"context"
 	"strings"
+	"time"
 )
 
 type Service interface {
@@ -31,8 +32,13 @@ type PasswordHasher interface {
 }
 
 type Usecase struct {
-	r      Repository
-	hasher PasswordHasher
+	r           Repository
+	hasher      PasswordHasher
+	sessionRepo SessionRepository
+}
+
+type SessionRepository interface {
+	RevokeAllByUserID(ctx context.Context, userID string, revokedAt time.Time) error
 }
 
 func NewUsecase(r Repository, h PasswordHasher) *Usecase {
@@ -40,6 +46,12 @@ func NewUsecase(r Repository, h PasswordHasher) *Usecase {
 		r:      r,
 		hasher: h,
 	}
+}
+
+func NewUsecaseWithSession(r Repository, h PasswordHasher, sessionRepo SessionRepository) *Usecase {
+	uc := NewUsecase(r, h)
+	uc.sessionRepo = sessionRepo
+	return uc
 }
 
 func (uc *Usecase) AddUser(ctx context.Context, u User) error {
@@ -118,7 +130,15 @@ func (uc *Usecase) ChangePassword(ctx context.Context, id, currentPassword, newP
 	if err != nil {
 		return err
 	}
-	return uc.r.UpdatePasswordHash(ctx, id, hashed)
+	if err := uc.r.UpdatePasswordHash(ctx, id, hashed); err != nil {
+		return err
+	}
+	if uc.sessionRepo != nil {
+		if err := uc.sessionRepo.RevokeAllByUserID(ctx, id, time.Now().UTC()); err != nil {
+			return err
+		}
+	}
+	return nil
 }
 
 func (uc *Usecase) DeactivateUser(ctx context.Context, id string) error {

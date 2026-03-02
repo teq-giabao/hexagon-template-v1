@@ -17,6 +17,7 @@ import (
 	"hexagon/pkg/config"
 	"hexagon/pkg/hashing"
 	"hexagon/pkg/jwt"
+	resendmailer "hexagon/pkg/mailer/resend"
 	oauthgoogle "hexagon/pkg/oauth/google"
 	"hexagon/pkg/sentry"
 	"hexagon/postgres"
@@ -65,9 +66,12 @@ func main() {
 		os.Exit(1)
 	}
 
-	userService := user.NewUsecase(
-		postgres.NewUserRepository(db),
+	userRepo := postgres.NewUserRepository(db)
+	refreshTokenRepo := postgres.NewRefreshTokenRepository(db)
+	userService := user.NewUsecaseWithSession(
+		userRepo,
 		hashing.NewBcryptHasher(),
+		refreshTokenRepo,
 	)
 	googleProvider, err := oauthgoogle.NewProvider(
 		cfg.Auth.GoogleClientID,
@@ -79,7 +83,10 @@ func main() {
 		os.Exit(1)
 	}
 	authService := auth.NewUsecase(
-		postgres.NewUserRepository(db),
+		userRepo,
+		postgres.NewOAuthProviderAccountRepository(db),
+		refreshTokenRepo,
+		postgres.NewPasswordResetTokenRepository(db),
 		hashing.NewBcryptHasher(),
 		jwt.NewJWTProvider(
 			cfg.Auth.JWTSecret,
@@ -87,6 +94,8 @@ func main() {
 			time.Duration(cfg.Auth.RefreshTTL)*time.Second,
 		),
 		googleProvider,
+		createResetMailer(cfg),
+		cfg.Auth.ResetPasswordURL,
 	)
 	server := httpserver.Default(cfg)
 	server.JWTSecret = cfg.Auth.JWTSecret
@@ -99,4 +108,20 @@ func main() {
 		slog.Error("server stopped with error", "error", err)
 		os.Exit(1)
 	}
+}
+
+func createResetMailer(cfg *config.Config) auth.PasswordResetMailer {
+	if cfg == nil {
+		return nil
+	}
+	mailer, err := resendmailer.NewProvider(
+		cfg.Auth.ResendAPIKey,
+		cfg.Auth.ResendFromEmail,
+		cfg.Auth.ResendFromName,
+	)
+	if err != nil {
+		slog.Warn("password reset mailer is not configured", "error", err)
+		return nil
+	}
+	return mailer
 }

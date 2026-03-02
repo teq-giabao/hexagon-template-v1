@@ -1,0 +1,39 @@
+-- +migrate Up
+ALTER TABLE IF EXISTS users
+    ALTER COLUMN lock_until TYPE TIMESTAMPTZ USING lock_until AT TIME ZONE 'UTC',
+    ALTER COLUMN last_failed_login_at TYPE TIMESTAMPTZ USING last_failed_login_at AT TIME ZONE 'UTC',
+    ALTER COLUMN created_at TYPE TIMESTAMPTZ USING created_at AT TIME ZONE 'UTC',
+    ALTER COLUMN updated_at TYPE TIMESTAMPTZ USING updated_at AT TIME ZONE 'UTC';
+
+ALTER TABLE IF EXISTS oauth_provider_accounts
+    ALTER COLUMN created_at TYPE TIMESTAMPTZ USING created_at AT TIME ZONE 'UTC';
+
+ALTER TABLE IF EXISTS refresh_tokens
+    ALTER COLUMN expires_at TYPE TIMESTAMPTZ USING expires_at AT TIME ZONE 'UTC',
+    ALTER COLUMN revoked_at TYPE TIMESTAMPTZ USING revoked_at AT TIME ZONE 'UTC',
+    ALTER COLUMN created_at TYPE TIMESTAMPTZ USING created_at AT TIME ZONE 'UTC';
+
+ALTER TABLE IF EXISTS password_reset_tokens
+    ALTER COLUMN expires_at TYPE TIMESTAMPTZ USING expires_at AT TIME ZONE 'UTC',
+    ALTER COLUMN used_at TYPE TIMESTAMPTZ USING used_at AT TIME ZONE 'UTC',
+    ALTER COLUMN created_at TYPE TIMESTAMPTZ USING created_at AT TIME ZONE 'UTC';
+
+-- +migrate Down
+ALTER TABLE IF EXISTS password_reset_tokens
+    ALTER COLUMN expires_at TYPE TIMESTAMP USING expires_at AT TIME ZONE 'UTC',
+    ALTER COLUMN used_at TYPE TIMESTAMP USING used_at AT TIME ZONE 'UTC',
+    ALTER COLUMN created_at TYPE TIMESTAMP USING created_at AT TIME ZONE 'UTC';
+
+ALTER TABLE IF EXISTS refresh_tokens
+    ALTER COLUMN expires_at TYPE TIMESTAMP USING expires_at AT TIME ZONE 'UTC',
+    ALTER COLUMN revoked_at TYPE TIMESTAMP USING revoked_at AT TIME ZONE 'UTC',
+    ALTER COLUMN created_at TYPE TIMESTAMP USING created_at AT TIME ZONE 'UTC';
+
+ALTER TABLE IF EXISTS oauth_provider_accounts
+    ALTER COLUMN created_at TYPE TIMESTAMP USING created_at AT TIME ZONE 'UTC';
+
+ALTER TABLE IF EXISTS users
+    ALTER COLUMN lock_until TYPE TIMESTAMP USING lock_until AT TIME ZONE 'UTC',
+    ALTER COLUMN last_failed_login_at TYPE TIMESTAMP USING last_failed_login_at AT TIME ZONE 'UTC',
+    ALTER COLUMN created_at TYPE TIMESTAMP USING created_at AT TIME ZONE 'UTC',
+    ALTER COLUMN updated_at TYPE TIMESTAMP USING updated_at AT TIME ZONE 'UTC';

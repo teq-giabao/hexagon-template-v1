@@ -46,6 +46,14 @@ definitions:
     - currentPassword
     - newPassword
     type: object
+  httpserver.ForgotPasswordRequest:
+    properties:
+      email:
+        maxLength: 255
+        type: string
+    required:
+    - email
+    type: object
   httpserver.LoginRequest:
     properties:
       email:
@@ -57,6 +65,13 @@ definitions:
     required:
     - email
     - password
+    type: object
+  httpserver.LogoutRequest:
+    properties:
+      refreshToken:
+        type: string
+    required:
+    - refreshToken
     type: object
   httpserver.RefreshRequest:
     properties:
@@ -82,6 +97,16 @@ definitions:
     - email
     - name
     - password
+    type: object
+  httpserver.ResetPasswordRequest:
+    properties:
+      newPassword:
+        type: string
+      token:
+        type: string
+    required:
+    - newPassword
+    - token
     type: object
   httpserver.UpdateProfileRequest:
     properties:
@@ -120,6 +145,36 @@ info:
   title: Hexagon API
   version: "1.0"
 paths:
+  /api/auth/forgot-password:
+    post:
+      consumes:
+      - application/json
+      description: Send reset password email
+      parameters:
+      - description: Forgot password payload
+        in: body
+        name: payload
+        required: true
+        schema:
+          $ref: '#/definitions/httpserver.ForgotPasswordRequest'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/httpserver.APISuccessResponse'
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/httpserver.APIErrorResponse'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/httpserver.APIErrorResponse'
+      summary: Forgot Password
+      tags:
+      - auth
   /api/auth/google/callback:
     get:
       description: Exchange Google OAuth2 code for tokens
@@ -211,6 +266,67 @@ paths:
       summary: User Login
       tags:
       - auth
+  /api/auth/logout:
+    post:
+      consumes:
+      - application/json
+      description: Revoke current refresh token
+      parameters:
+      - description: Logout payload
+        in: body
+        name: payload
+        required: true
+        schema:
+          $ref: '#/definitions/httpserver.LogoutRequest'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/httpserver.APISuccessResponse'
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/httpserver.APIErrorResponse'
+        "401":
+          description: Unauthorized
+          schema:
+            $ref: '#/definitions/httpserver.APIErrorResponse'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/httpserver.APIErrorResponse'
+      summary: User Logout
+      tags:
+      - auth
+  /api/auth/me:
+    get:
+      description: Get current authenticated user information
+      parameters:
+      - description: Bearer <accessToken>
+        in: header
+        name: Authorization
+        required: true
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/httpserver.APISuccessResponse'
+        "401":
+          description: Unauthorized
+          schema:
+            $ref: '#/definitions/httpserver.APIErrorResponse'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/httpserver.APIErrorResponse'
+      summary: Current User
+      tags:
+      - auth
   /api/auth/refresh:
     post:
       consumes:
@@ -277,6 +393,40 @@ paths:
           schema:
             $ref: '#/definitions/httpserver.APIErrorResponse'
       summary: User Register
+      tags:
+      - auth
+  /api/auth/reset-password:
+    post:
+      consumes:
+      - application/json
+      description: Reset password using reset token
+      parameters:
+      - description: Reset password payload
+        in: body
+        name: payload
+        required: true
+        schema:
+          $ref: '#/definitions/httpserver.ResetPasswordRequest'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/httpserver.APISuccessResponse'
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/httpserver.APIErrorResponse'
+        "401":
+          description: Unauthorized
+          schema:
+            $ref: '#/definitions/httpserver.APIErrorResponse'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/httpserver.APIErrorResponse'
+      summary: Reset Password
       tags:
       - auth
   /api/users:

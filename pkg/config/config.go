@@ -30,6 +30,10 @@ type Config struct {
 		GoogleClientID     string `envconfig:"AUTH_GOOGLE_CLIENT_ID"`
 		GoogleClientSecret string `envconfig:"AUTH_GOOGLE_CLIENT_SECRET"`
 		GoogleRedirectURL  string `envconfig:"AUTH_GOOGLE_REDIRECT_URL"`
+		ResetPasswordURL   string `envconfig:"AUTH_RESET_PASSWORD_URL"`
+		ResendAPIKey       string `envconfig:"AUTH_RESEND_API_KEY"`
+		ResendFromEmail    string `envconfig:"AUTH_RESEND_FROM_EMAIL"`
+		ResendFromName     string `envconfig:"AUTH_RESEND_FROM_NAME"`
 	}
 }
 

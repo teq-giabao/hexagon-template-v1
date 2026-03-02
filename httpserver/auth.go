@@ -5,20 +5,31 @@ import (
 	"encoding/base64"
 	"errors"
 	"net/http"
+	"strings"
 	"time"
 
 	"hexagon/auth"
 	"hexagon/user"
 
 	"github.com/labstack/echo/v4"
+	"github.com/labstack/echo/v4/middleware"
+	"golang.org/x/time/rate"
 )
 
 func (s *Server) RegisterAuthRoutes() {
-	s.Router.POST("/api/auth/register", s.handleRegister)
-	s.Router.POST("/api/auth/login", s.handleLogin)
-	s.Router.POST("/api/auth/refresh", s.handleRefresh)
-	s.Router.GET("/api/auth/google/login", s.handleGoogleLogin)
-	s.Router.GET("/api/auth/google/callback", s.handleGoogleCallback)
+	authGroup := s.Router.Group("/api/auth")
+	authGroup.POST("/register", s.handleRegister)
+	authGroup.POST("/logout", s.handleLogout)
+	authGroup.GET("/me", s.handleMe)
+	authGroup.GET("/google/login", s.handleGoogleLogin)
+	authGroup.GET("/google/callback", s.handleGoogleCallback)
+
+	sensitiveAuth := s.Router.Group("/api/auth")
+	sensitiveAuth.Use(authSensitiveRateLimiter())
+	sensitiveAuth.POST("/login", s.handleLogin)
+	sensitiveAuth.POST("/forgot-password", s.handleForgotPassword)
+	sensitiveAuth.POST("/reset-password", s.handleResetPassword)
+	sensitiveAuth.POST("/refresh", s.handleRefresh)
 }
 
 // handleRegister godoc
@@ -44,13 +55,19 @@ func (s *Server) handleRegister(c echo.Context) error {
 	}
 
 	tokens, err := s.AuthService.Register(
-		c.Request().Context(),
+		auth.WithClientInfo(c.Request().Context(), auth.ClientInfo{
+			UserAgent: c.Request().UserAgent(),
+			IPAddress: c.RealIP(),
+		}),
 		req.Name,
 		req.Email,
 		req.Phone,
 		req.Password,
 	)
 	if err != nil {
+		if errors.Is(err, auth.ErrEmailRegisteredWithOAuth) {
+			return respondError(c, http.StatusConflict, "email already registered with oauth", err.Error())
+		}
 		if errors.Is(err, user.ErrEmailAlreadyExists) {
 			return respondError(c, http.StatusConflict, "email already exists", err.Error())
 		}
@@ -87,12 +104,18 @@ func (s *Server) handleLogin(c echo.Context) error {
 	}
 
 	tokens, err := s.AuthService.Login(
-		c.Request().Context(),
+		auth.WithClientInfo(c.Request().Context(), auth.ClientInfo{
+			UserAgent: c.Request().UserAgent(),
+			IPAddress: c.RealIP(),
+		}),
 		req.Email,
 		req.Password,
 	)
 
 	if err != nil {
+		if errors.Is(err, auth.ErrPasswordAuthNotAvailable) {
+			return respondError(c, http.StatusUnauthorized, "password login is not available for this account", err.Error())
+		}
 		if errors.Is(err, auth.ErrAccountLocked) {
 			return respondError(c, http.StatusTooManyRequests, "account temporarily locked", err.Error())
 		}
@@ -106,6 +129,132 @@ func (s *Server) handleLogin(c echo.Context) error {
 		"accessToken":  tokens.AccessToken,
 		"refreshToken": tokens.RefreshToken,
 	})
+}
+
+// handleLogout godoc
+// @Summary User Logout
+// @Description Revoke current refresh token
+// @Tags auth
+// @Accept json
+// @Produce json
+// @Param payload body LogoutRequest true "Logout payload"
+// @Success 200 {object} APISuccessResponse
+// @Failure 400 {object} APIErrorResponse
+// @Failure 401 {object} APIErrorResponse
+// @Failure 500 {object} APIErrorResponse
+// @Router /api/auth/logout [post]
+func (s *Server) handleLogout(c echo.Context) error {
+	var req LogoutRequest
+	if err := c.Bind(&req); err != nil {
+		return respondError(c, http.StatusBadRequest, "invalid request body", err.Error())
+	}
+	if err := c.Validate(&req); err != nil {
+		return respondError(c, http.StatusBadRequest, "invalid request body", err.Error())
+	}
+	if err := s.AuthService.Logout(auth.WithClientInfo(c.Request().Context(), auth.ClientInfo{
+		UserAgent: c.Request().UserAgent(),
+		IPAddress: c.RealIP(),
+	}), req.RefreshToken); err != nil {
+		if errors.Is(err, auth.ErrInvalidRefreshToken) {
+			return respondError(c, http.StatusUnauthorized, "invalid refresh token", err.Error())
+		}
+		return respondError(c, http.StatusInternalServerError, "internal error", err.Error())
+	}
+	return respondOK(c, map[string]any{})
+}
+
+// handleForgotPassword godoc
+// @Summary Forgot Password
+// @Description Send reset password email
+// @Tags auth
+// @Accept json
+// @Produce json
+// @Param payload body ForgotPasswordRequest true "Forgot password payload"
+// @Success 200 {object} APISuccessResponse
+// @Failure 400 {object} APIErrorResponse
+// @Failure 500 {object} APIErrorResponse
+// @Router /api/auth/forgot-password [post]
+func (s *Server) handleForgotPassword(c echo.Context) error {
+	var req ForgotPasswordRequest
+	if err := c.Bind(&req); err != nil {
+		return respondError(c, http.StatusBadRequest, "invalid request body", err.Error())
+	}
+	if err := c.Validate(&req); err != nil {
+		return respondError(c, http.StatusBadRequest, "invalid request body", err.Error())
+	}
+	if err := s.AuthService.ForgotPassword(auth.WithClientInfo(c.Request().Context(), auth.ClientInfo{
+		UserAgent: c.Request().UserAgent(),
+		IPAddress: c.RealIP(),
+	}), req.Email); err != nil {
+		if errors.Is(err, auth.ErrPasswordAuthNotAvailable) {
+			return respondError(c, http.StatusBadRequest, "password reset is not available for this account", err.Error())
+		}
+		if errors.Is(err, auth.ErrMailerNotConfigured) {
+			return respondError(c, http.StatusNotImplemented, "password reset mailer not configured", err.Error())
+		}
+		return respondError(c, http.StatusInternalServerError, "internal error", err.Error())
+	}
+	return respondOK(c, map[string]any{})
+}
+
+// handleResetPassword godoc
+// @Summary Reset Password
+// @Description Reset password using reset token
+// @Tags auth
+// @Accept json
+// @Produce json
+// @Param payload body ResetPasswordRequest true "Reset password payload"
+// @Success 200 {object} APISuccessResponse
+// @Failure 400 {object} APIErrorResponse
+// @Failure 401 {object} APIErrorResponse
+// @Failure 500 {object} APIErrorResponse
+// @Router /api/auth/reset-password [post]
+func (s *Server) handleResetPassword(c echo.Context) error {
+	var req ResetPasswordRequest
+	if err := c.Bind(&req); err != nil {
+		return respondError(c, http.StatusBadRequest, "invalid request body", err.Error())
+	}
+	if err := c.Validate(&req); err != nil {
+		return respondError(c, http.StatusBadRequest, "invalid request body", err.Error())
+	}
+	if err := s.AuthService.ResetPassword(auth.WithClientInfo(c.Request().Context(), auth.ClientInfo{
+		UserAgent: c.Request().UserAgent(),
+		IPAddress: c.RealIP(),
+	}), req.Token, req.NewPassword); err != nil {
+		if errors.Is(err, auth.ErrPasswordAuthNotAvailable) {
+			return respondError(c, http.StatusBadRequest, "password reset is not available for this account", err.Error())
+		}
+		if errors.Is(err, auth.ErrInvalidResetToken) {
+			return respondError(c, http.StatusUnauthorized, "invalid reset token", err.Error())
+		}
+		return respondError(c, http.StatusInternalServerError, "internal error", err.Error())
+	}
+	return respondOK(c, map[string]any{})
+}
+
+// handleMe godoc
+// @Summary Current User
+// @Description Get current authenticated user information
+// @Tags auth
+// @Produce json
+// @Param Authorization header string true "Bearer <accessToken>"
+// @Success 200 {object} APISuccessResponse
+// @Failure 401 {object} APIErrorResponse
+// @Failure 500 {object} APIErrorResponse
+// @Router /api/auth/me [get]
+func (s *Server) handleMe(c echo.Context) error {
+	accessToken := extractBearerToken(c.Request().Header.Get("Authorization"))
+	if accessToken == "" {
+		return respondError(c, http.StatusUnauthorized, "invalid access token", "missing bearer token")
+	}
+	u, err := s.AuthService.Me(c.Request().Context(), accessToken)
+	if err != nil {
+		if errors.Is(err, auth.ErrInvalidAccessToken) {
+			return respondError(c, http.StatusUnauthorized, "invalid access token", err.Error())
+		}
+		return respondError(c, http.StatusInternalServerError, "internal error", err.Error())
+	}
+	return respondOK(c, toUserResponse(u))
 }
 
 // handleGoogleLogin godoc
@@ -168,7 +317,10 @@ func (s *Server) handleGoogleCallback(c echo.Context) error {
 		return respondError(c, http.StatusUnauthorized, "invalid oauth state", "oauth state mismatch")
 	}
 
-	tokens, err := s.AuthService.LoginWithGoogle(c.Request().Context(), code)
+	tokens, err := s.AuthService.LoginWithGoogle(auth.WithClientInfo(c.Request().Context(), auth.ClientInfo{
+		UserAgent: c.Request().UserAgent(),
+		IPAddress: c.RealIP(),
+	}), code)
 	if err != nil {
 		if errors.Is(err, auth.ErrOAuthNotConfigured) {
 			return respondError(c, http.StatusNotImplemented, "oauth not configured", err.Error())
@@ -207,6 +359,14 @@ func generateOAuthState(length int) (string, error) {
 	return base64.RawURLEncoding.EncodeToString(buf), nil
 }
 
+func extractBearerToken(authorization string) string {
+	const bearerPrefix = "Bearer "
+	if !strings.HasPrefix(authorization, bearerPrefix) {
+		return ""
+	}
+	return strings.TrimSpace(strings.TrimPrefix(authorization, bearerPrefix))
+}
+
 // handleRefresh godoc
 // @Summary Refresh Access Token
 // @Description Refresh access token using refresh token
@@ -229,7 +389,10 @@ func (s *Server) handleRefresh(c echo.Context) error {
 		return respondError(c, http.StatusBadRequest, "invalid request body", err.Error())
 	}
 
-	tokens, err := s.AuthService.Refresh(c.Request().Context(), req.RefreshToken)
+	tokens, err := s.AuthService.Refresh(auth.WithClientInfo(c.Request().Context(), auth.ClientInfo{
+		UserAgent: c.Request().UserAgent(),
+		IPAddress: c.RealIP(),
+	}), req.RefreshToken)
 	if err != nil {
 		if errors.Is(err, auth.ErrInvalidRefreshToken) {
 			return respondError(c, http.StatusUnauthorized, "invalid refresh token", err.Error())
@@ -240,5 +403,24 @@ func (s *Server) handleRefresh(c echo.Context) error {
 	return respondOK(c, map[string]string{
 		"accessToken":  tokens.AccessToken,
 		"refreshToken": tokens.RefreshToken,
+	})
+}
+
+func authSensitiveRateLimiter() echo.MiddlewareFunc {
+	return middleware.RateLimiterWithConfig(middleware.RateLimiterConfig{
+		Store: middleware.NewRateLimiterMemoryStoreWithConfig(middleware.RateLimiterMemoryStoreConfig{
+			Rate:      rate.Limit(5.0 / 60.0),
+			Burst:     5,
+			ExpiresIn: 3 * time.Minute,
+		}),
+		IdentifierExtractor: func(c echo.Context) (string, error) {
+			return c.Path() + "|" + c.RealIP(), nil
+		},
+		DenyHandler: func(c echo.Context, _ string, _ error) error {
+			return respondError(c, http.StatusTooManyRequests, "too many requests", "rate limit exceeded")
+		},
+		ErrorHandler: func(c echo.Context, err error) error {
+			return respondError(c, http.StatusInternalServerError, "internal error", err.Error())
+		},
 	})
 }

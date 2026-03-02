@@ -29,6 +29,10 @@ func NewJWTProvider(secret string, accessTTL, refreshTTL time.Duration) *JWTProv
 	}
 }
 
+func (p *JWTProvider) GetRefreshTTL() time.Duration {
+	return p.RefreshTTL
+}
+
 func (p *JWTProvider) GenerateAccessToken(u user.User) (string, error) {
 	now := time.Now().UTC()
 	jti, err := generateJTI(24)
@@ -78,11 +82,19 @@ func (p *JWTProvider) GenerateRefreshToken(u user.User) (string, error) {
 }
 
 func (p *JWTProvider) ParseRefreshToken(refreshToken string) (user.User, error) {
-	claims, err := p.parseTokenClaims(refreshToken)
+	return p.parseTokenByType(refreshToken, "refresh")
+}
+
+func (p *JWTProvider) ParseAccessToken(accessToken string) (user.User, error) {
+	return p.parseTokenByType(accessToken, "access")
+}
+
+func (p *JWTProvider) parseTokenByType(token string, expectedType string) (user.User, error) {
+	claims, err := p.parseTokenClaims(token)
 	if err != nil {
 		return user.User{}, err
 	}
-	if err := p.validateRefreshClaims(claims); err != nil {
+	if err := p.validateTokenClaims(claims, expectedType); err != nil {
 		return user.User{}, err
 	}
 
@@ -123,8 +135,8 @@ func (p *JWTProvider) parseTokenClaims(refreshToken string) (jwt.MapClaims, erro
 	return claims, nil
 }
 
-func (p *JWTProvider) validateRefreshClaims(claims jwt.MapClaims) error {
-	if claimType, ok := claims["type"].(string); !ok || claimType != "refresh" {
+func (p *JWTProvider) validateTokenClaims(claims jwt.MapClaims, expectedType string) error {
+	if claimType, ok := claims["type"].(string); !ok || claimType != expectedType {
 		return errors.New("invalid token type")
 	}
 	if iss, ok := claims["iss"].(string); !ok || iss != p.Issuer {

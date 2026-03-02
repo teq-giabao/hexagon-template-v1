@@ -65,6 +65,15 @@ func (m *MockPasswordHasher) Compare(hashed, plain string) error {
 	return args.Error(0)
 }
 
+type MockSessionRepository struct {
+	mock.Mock
+}
+
+func (m *MockSessionRepository) RevokeAllByUserID(ctx context.Context, userID string, revokedAt time.Time) error {
+	args := m.Called(ctx, userID, revokedAt)
+	return args.Error(0)
+}
+
 // TEST AddUser
 func TestAddUser(t *testing.T) {
 	t.Run("should add new user", func(t *testing.T) {
@@ -587,4 +596,25 @@ func TestDeactivateUser(t *testing.T) {
 		assert.NoError(t, err)
 		r.AssertExpectations(t)
 	})
+}
+
+func TestChangePassword_RevokeSessions(t *testing.T) {
+	r := new(MockUserRepository)
+	h := new(MockPasswordHasher)
+	s := new(MockSessionRepository)
+	uc := user.NewUsecaseWithSession(r, h, s)
+
+	u := user.User{ID: "u-1", PasswordHash: "hashed-current"}
+	r.On("GetByID", mock.Anything, "u-1").Return(u, nil).Once()
+	h.On("Compare", "hashed-current", "Current123!").Return(nil).Once()
+	h.On("Hash", "NewPassword1!").Return("hashed-new", nil).Once()
+	r.On("UpdatePasswordHash", mock.Anything, "u-1", "hashed-new").Return(nil).Once()
+	s.On("RevokeAllByUserID", mock.Anything, "u-1", mock.AnythingOfType("time.Time")).Return(nil).Once()
+
+	err := uc.ChangePassword(context.Background(), "u-1", "Current123!", "NewPassword1!")
+
+	assert.NoError(t, err)
+	r.AssertExpectations(t)
+	h.AssertExpectations(t)
+	s.AssertExpectations(t)
 }

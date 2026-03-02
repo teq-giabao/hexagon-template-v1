@@ -45,3 +45,16 @@ type ChangePasswordRequest struct {
 type RefreshRequest struct {
 	RefreshToken string `json:"refreshToken" validate:"required,notblank"`
 }
+
+type ForgotPasswordRequest struct {
+	Email string `json:"email" validate:"required,email,max=255"`
+}
+
+type ResetPasswordRequest struct {
+	Token       string `json:"token" validate:"required,notblank"`
+	NewPassword string `json:"newPassword" validate:"required,notblank,password"`
+}
+
+type LogoutRequest struct {
+	RefreshToken string `json:"refreshToken" validate:"required,notblank"`
+}
