@@ -24,6 +24,7 @@ var (
 )
 
 type Service interface {
+	Register(ctx context.Context, name, email, phone, password string) (TokenPair, error)
 	Login(ctx context.Context, email, password string) (TokenPair, error)
 	Refresh(ctx context.Context, refreshToken string) (TokenPair, error)
 	GoogleAuthURL(state string) (string, error)
@@ -34,17 +35,15 @@ type UserRepository interface {
 	GetByEmail(ctx context.Context, email string) (user.User, error)
 	CreateUser(ctx context.Context, u user.User) error
 	CreateUserTx(ctx context.Context, u user.User, fn func(created user.User) error) (user.User, error)
-}
-
-type LoginAttempt struct {
-	FailedCount int
-	JailedUntil time.Time
-}
-
-type LoginAttemptRepository interface {
-	Get(ctx context.Context, email string) (LoginAttempt, error)
-	Save(ctx context.Context, email string, attempt LoginAttempt) error
-	Reset(ctx context.Context, email string) error
+	UpdateAuthState(
+		ctx context.Context,
+		id string,
+		failedLoginAttempts int,
+		lockUntil *time.Time,
+		lockEscalationLevel int,
+		lastFailedLoginAt *time.Time,
+		status user.UserStatus,
+	) error
 }
 
 type PasswordHasher interface {
@@ -71,7 +70,6 @@ type GoogleOAuthProvider interface {
 
 type Usecase struct {
 	userRepo       UserRepository
-	attemptsRepo   LoginAttemptRepository
 	passwordHasher PasswordHasher
 	tokenProvider  TokenProvider
 	googleProvider GoogleOAuthProvider
@@ -87,14 +85,12 @@ type TokenPair struct {
 
 func NewUsecase(
 	userRepo UserRepository,
-	attemptsRepo LoginAttemptRepository,
 	passwordHasher PasswordHasher,
 	tokenProvider TokenProvider,
 	googleProvider GoogleOAuthProvider,
 ) *Usecase {
 	return &Usecase{
 		userRepo:       userRepo,
-		attemptsRepo:   attemptsRepo,
 		passwordHasher: passwordHasher,
 		tokenProvider:  tokenProvider,
 		googleProvider: googleProvider,
@@ -106,43 +102,116 @@ func NewUsecase(
 	}
 }
 
-func (uc *Usecase) Login(ctx context.Context, email, password string) (TokenPair, error) {
-	attempt, err := uc.attemptsRepo.Get(ctx, email)
+func (uc *Usecase) Register(ctx context.Context, name, email, phone, password string) (TokenPair, error) {
+	newUser := user.User{
+		Name:     strings.TrimSpace(name),
+		Email:    strings.TrimSpace(email),
+		Phone:    strings.TrimSpace(phone),
+		Password: strings.TrimSpace(password),
+		Role:     user.UserRoleUser,
+		Status:   user.UserStatusActive,
+	}
+	if err := newUser.Validate(); err != nil {
+		return TokenPair{}, err
+	}
+
+	hashed, err := uc.passwordHasher.Hash(newUser.Password)
+	if err != nil {
+		return TokenPair{}, err
+	}
+	newUser.Password = ""
+	newUser.PasswordHash = hashed
+
+	var tokens TokenPair
+	_, err = uc.userRepo.CreateUserTx(ctx, newUser, func(created user.User) error {
+		accessToken, err := uc.tokenProvider.GenerateAccessToken(created)
+		if err != nil {
+			return err
+		}
+		refreshToken, err := uc.tokenProvider.GenerateRefreshToken(created)
+		if err != nil {
+			return err
+		}
+		tokens = TokenPair{
+			AccessToken:  accessToken,
+			RefreshToken: refreshToken,
+		}
+		return nil
+	})
 	if err != nil {
 		return TokenPair{}, err
 	}
 
-	if !attempt.JailedUntil.IsZero() {
-		if attempt.JailedUntil.After(uc.now()) {
-			return TokenPair{}, ErrAccountLocked
-		}
-		attempt.JailedUntil = time.Time{}
-		attempt.FailedCount = 0
-		if err := uc.attemptsRepo.Save(ctx, email, attempt); err != nil {
-			return TokenPair{}, err
-		}
-	}
+	return tokens, nil
+}
+
+func (uc *Usecase) Login(ctx context.Context, email, password string) (TokenPair, error) {
+	now := uc.now()
 
 	u, err := uc.userRepo.GetByEmail(ctx, email)
 	if err != nil {
-		if err := uc.recordFailure(ctx, email, attempt); err != nil {
-			return TokenPair{}, err
-		}
 		return TokenPair{}, ErrInvalidCredentials
 	}
 
-	// Compare password
-	if err := uc.passwordHasher.Compare(u.Password, password); err != nil {
-		if err := uc.recordFailure(ctx, email, attempt); err != nil {
-			return TokenPair{}, err
-		}
-		return TokenPair{}, ErrInvalidCredentials
-	}
-
-	if err := uc.attemptsRepo.Reset(ctx, email); err != nil {
+	u, err = uc.handleLockState(ctx, u, now)
+	if err != nil {
 		return TokenPair{}, err
 	}
 
+	// Compare password
+	if err := uc.passwordHasher.Compare(u.PasswordHash, password); err != nil {
+		if err := uc.recordFailure(ctx, u, now); err != nil {
+			return TokenPair{}, err
+		}
+		return TokenPair{}, ErrInvalidCredentials
+	}
+
+	if err := uc.resetAuthState(ctx, u); err != nil {
+		return TokenPair{}, err
+	}
+
+	return uc.issueTokens(u)
+}
+
+func (uc *Usecase) handleLockState(ctx context.Context, u user.User, now time.Time) (user.User, error) {
+	if u.Status != user.UserStatusLocked || u.LockUntil == nil {
+		return u, nil
+	}
+	if u.LockUntil.After(now) {
+		return user.User{}, ErrAccountLocked
+	}
+
+	if err := uc.userRepo.UpdateAuthState(
+		ctx,
+		u.ID,
+		0,
+		nil,
+		u.LockEscalationLevel,
+		nil,
+		user.UserStatusActive,
+	); err != nil {
+		return user.User{}, err
+	}
+	u.Status = user.UserStatusActive
+	u.LockUntil = nil
+	u.FailedLoginAttempts = 0
+	u.LastFailedLoginAt = nil
+	return u, nil
+}
+
+func (uc *Usecase) resetAuthState(ctx context.Context, u user.User) error {
+	return uc.userRepo.UpdateAuthState(
+		ctx,
+		u.ID,
+		0,
+		nil,
+		u.LockEscalationLevel,
+		nil,
+		u.Status,
+	)
+}
+
+func (uc *Usecase) issueTokens(u user.User) (TokenPair, error) {
 	accessToken, err := uc.tokenProvider.GenerateAccessToken(u)
 	if err != nil {
 		return TokenPair{}, err
@@ -239,7 +308,7 @@ func (uc *Usecase) getOrCreateUserFromOAuth(ctx context.Context, oauthUser OAuth
 	if err == nil {
 		return u, TokenPair{}, false, nil
 	}
-	if !errors.Is(err, user.ErrInvalidEmail) {
+	if !errors.Is(err, user.ErrUserNotFound) {
 		return user.User{}, TokenPair{}, false, err
 	}
 
@@ -251,14 +320,19 @@ func (uc *Usecase) getOrCreateUserFromOAuth(ctx context.Context, oauthUser OAuth
 	if err != nil {
 		return user.User{}, TokenPair{}, false, err
 	}
-	username, err := generateRandomUsername(16)
-	if err != nil {
-		return user.User{}, TokenPair{}, false, err
+	name := strings.TrimSpace(oauthUser.Name)
+	if name == "" {
+		name, err = generateRandomName(16)
+		if err != nil {
+			return user.User{}, TokenPair{}, false, err
+		}
 	}
 	newUser := user.User{
-		Username: username,
-		Email:    oauthUser.Email,
-		Password: hashed,
+		Name:         name,
+		Email:        oauthUser.Email,
+		PasswordHash: hashed,
+		Role:         user.UserRoleUser,
+		Status:       user.UserStatusActive,
 	}
 
 	var tokens TokenPair
@@ -284,13 +358,30 @@ func (uc *Usecase) getOrCreateUserFromOAuth(ctx context.Context, oauthUser OAuth
 	return created, tokens, true, nil
 }
 
-func (uc *Usecase) recordFailure(ctx context.Context, email string, attempt LoginAttempt) error {
-	attempt.FailedCount++
-	if attempt.FailedCount >= uc.maxRetries {
-		attempt.FailedCount = 0
-		attempt.JailedUntil = uc.now().Add(uc.jailDuration)
+func (uc *Usecase) recordFailure(ctx context.Context, u user.User, now time.Time) error {
+	failedCount := u.FailedLoginAttempts + 1
+	lockUntil := u.LockUntil
+	lockEscalationLevel := u.LockEscalationLevel
+	status := u.Status
+	lastFailedLoginAt := now
+
+	if failedCount >= uc.maxRetries {
+		failedCount = 0
+		t := now.Add(uc.jailDuration)
+		lockUntil = &t
+		lockEscalationLevel++
+		status = user.UserStatusLocked
 	}
-	return uc.attemptsRepo.Save(ctx, email, attempt)
+
+	return uc.userRepo.UpdateAuthState(
+		ctx,
+		u.ID,
+		failedCount,
+		lockUntil,
+		lockEscalationLevel,
+		&lastFailedLoginAt,
+		status,
+	)
 }
 
 func generateRandomPassword(length int) (string, error) {
@@ -304,13 +395,13 @@ func generateRandomPassword(length int) (string, error) {
 	return base64.RawURLEncoding.EncodeToString(buf), nil
 }
 
-func generateRandomUsername(length int) (string, error) {
+func generateRandomName(length int) (string, error) {
 	if length <= 0 {
-		return "", errors.New("invalid username length")
+		return "", errors.New("invalid name length")
 	}
 	buf := make([]byte, length)
 	if _, err := rand.Read(buf); err != nil {
 		return "", err
 	}
-	return "u_" + base64.RawURLEncoding.EncodeToString(buf), nil
+	return "user_" + base64.RawURLEncoding.EncodeToString(buf), nil
 }

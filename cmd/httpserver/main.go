@@ -80,7 +80,6 @@ func main() {
 	}
 	authService := auth.NewUsecase(
 		postgres.NewUserRepository(db),
-		postgres.NewLoginAttemptRepository(db),
 		hashing.NewBcryptHasher(),
 		jwt.NewJWTProvider(
 			cfg.Auth.JWTSecret,

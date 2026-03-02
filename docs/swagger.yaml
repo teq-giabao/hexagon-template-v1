@@ -1,45 +1,116 @@
 basePath: /
 definitions:
-  contact.Contact:
+  httpserver.APIErrorResponse:
     properties:
-      name:
+      code:
         type: string
-      phone:
+      info:
+        type: string
+      message:
         type: string
     type: object
-  httpserver.AddContactRequest:
+  httpserver.APISuccessResponse:
     properties:
-      name:
+      code:
         type: string
-      phone:
+      message:
         type: string
+      result: {}
     type: object
   httpserver.AddUserRequest:
     properties:
       email:
+        maxLength: 255
+        type: string
+      name:
+        maxLength: 100
+        minLength: 2
         type: string
       password:
         type: string
-      username:
+      phone:
         type: string
+    required:
+    - email
+    - name
+    - password
+    type: object
+  httpserver.ChangePasswordRequest:
+    properties:
+      currentPassword:
+        maxLength: 72
+        type: string
+      newPassword:
+        type: string
+    required:
+    - currentPassword
+    - newPassword
     type: object
   httpserver.LoginRequest:
     properties:
       email:
+        maxLength: 255
+        type: string
+      password:
+        maxLength: 72
+        type: string
+    required:
+    - email
+    - password
+    type: object
+  httpserver.RefreshRequest:
+    properties:
+      refreshToken:
+        type: string
+    required:
+    - refreshToken
+    type: object
+  httpserver.RegisterRequest:
+    properties:
+      email:
+        maxLength: 255
+        type: string
+      name:
+        maxLength: 100
+        minLength: 2
         type: string
       password:
         type: string
+      phone:
+        type: string
+    required:
+    - email
+    - name
+    - password
     type: object
-  user.User:
+  httpserver.UpdateProfileRequest:
     properties:
+      name:
+        maxLength: 100
+        minLength: 2
+        type: string
+      phone:
+        type: string
+    required:
+    - name
+    type: object
+  httpserver.UserResponse:
+    properties:
+      createdAt:
+        type: string
       email:
         type: string
       id:
-        format: int64
-        type: integer
-      password:
         type: string
-      username:
+      name:
+        type: string
+      phone:
+        type: string
+      role:
+        type: string
+      status:
+        type: string
+      updatedAt:
         type: string
     type: object
 host: localhost:8088
@@ -49,11 +120,64 @@ info:
   title: Hexagon API
   version: "1.0"
 paths:
+  /api/auth/google/callback:
+    get:
+      description: Exchange Google OAuth2 code for tokens
+      parameters:
+      - description: OAuth code
+        in: query
+        name: code
+        required: true
+        type: string
+      - description: OAuth state
+        in: query
+        name: state
+        required: true
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/httpserver.APISuccessResponse'
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/httpserver.APIErrorResponse'
+        "401":
+          description: Unauthorized
+          schema:
+            $ref: '#/definitions/httpserver.APIErrorResponse'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/httpserver.APIErrorResponse'
+      summary: Google OAuth Callback
+      tags:
+      - auth
+  /api/auth/google/login:
+    get:
+      description: Get Google OAuth2 authorization URL
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/httpserver.APISuccessResponse'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/httpserver.APIErrorResponse'
+      summary: Google OAuth Login
+      tags:
+      - auth
   /api/auth/login:
     post:
       consumes:
       - application/json
-      description: Authenticate user and return JWT token
+      description: Authenticate user and return access + refresh tokens
       parameters:
       - description: Login Credentials
         in: body
@@ -67,92 +191,94 @@ paths:
         "200":
           description: OK
           schema:
-            additionalProperties:
-              type: string
-            type: object
+            $ref: '#/definitions/httpserver.APISuccessResponse'
         "400":
           description: Bad Request
           schema:
-            additionalProperties:
-              type: string
-            type: object
+            $ref: '#/definitions/httpserver.APIErrorResponse'
         "401":
           description: Unauthorized
           schema:
-            additionalProperties:
-              type: string
-            type: object
+            $ref: '#/definitions/httpserver.APIErrorResponse'
+        "429":
+          description: Too Many Requests
+          schema:
+            $ref: '#/definitions/httpserver.APIErrorResponse'
         "500":
           description: Internal Server Error
           schema:
-            additionalProperties:
-              type: string
-            type: object
+            $ref: '#/definitions/httpserver.APIErrorResponse'
       summary: User Login
       tags:
       - auth
-  /api/contacts:
-    get:
-      description: Get all contacts
+  /api/auth/refresh:
+    post:
+      consumes:
+      - application/json
+      description: Refresh access token using refresh token
+      parameters:
+      - description: Refresh Token
+        in: body
+        name: refresh
+        required: true
+        schema:
+          $ref: '#/definitions/httpserver.RefreshRequest'
       produces:
       - application/json
       responses:
         "200":
           description: OK
           schema:
-            items:
-              $ref: '#/definitions/contact.Contact'
-            type: array
-        "500":
-          description: Internal Server Error
-          schema:
-            additionalProperties:
-              type: string
-            type: object
-      summary: List Contacts
-      tags:
-      - contacts
-    post:
-      consumes:
-      - application/json
-      description: Add a new contact (requires authentication)
-      parameters:
-      - description: Contact Data
-        in: body
-        name: contact
-        required: true
-        schema:
-          $ref: '#/definitions/httpserver.AddContactRequest'
-      produces:
-      - application/json
-      responses:
-        "201":
-          description: Created
-          schema:
-            type: string
+            $ref: '#/definitions/httpserver.APISuccessResponse'
         "400":
           description: Bad Request
           schema:
-            additionalProperties:
-              type: string
-            type: object
+            $ref: '#/definitions/httpserver.APIErrorResponse'
         "401":
           description: Unauthorized
           schema:
-            additionalProperties:
-              type: string
-            type: object
+            $ref: '#/definitions/httpserver.APIErrorResponse'
         "500":
           description: Internal Server Error
           schema:
-            additionalProperties:
-              type: string
-            type: object
-      security:
-      - BearerAuth: []
-      summary: Create Contact
+            $ref: '#/definitions/httpserver.APIErrorResponse'
+      summary: Refresh Access Token
       tags:
-      - contacts
+      - auth
+  /api/auth/register:
+    post:
+      consumes:
+      - application/json
+      description: Register a new user and return access + refresh tokens
+      parameters:
+      - description: Register payload
+        in: body
+        name: payload
+        required: true
+        schema:
+          $ref: '#/definitions/httpserver.RegisterRequest'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/httpserver.APISuccessResponse'
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/httpserver.APIErrorResponse'
+        "409":
+          description: Conflict
+          schema:
+            $ref: '#/definitions/httpserver.APIErrorResponse'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/httpserver.APIErrorResponse'
+      summary: User Register
+      tags:
+      - auth
   /api/users:
     get:
       description: Get all users
@@ -163,7 +289,7 @@ paths:
           description: OK
           schema:
             items:
-              $ref: '#/definitions/user.User'
+              $ref: '#/definitions/httpserver.UserResponse'
             type: array
       summary: List Users
       tags:
@@ -193,6 +319,179 @@ paths:
       summary: Create User
       tags:
       - users
+  /api/users/{id}:
+    get:
+      description: Get a user by id
+      parameters:
+      - description: User ID
+        in: path
+        name: id
+        required: true
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/httpserver.UserResponse'
+        "400":
+          description: Bad Request
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+        "404":
+          description: Not Found
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+      summary: Get User By ID
+      tags:
+      - users
+  /api/users/{id}/deactivate:
+    patch:
+      description: Deactivate a user account
+      parameters:
+      - description: User ID
+        in: path
+        name: id
+        required: true
+        type: string
+      produces:
+      - application/json
+      responses:
+        "204":
+          description: No Content
+        "400":
+          description: Bad Request
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+        "404":
+          description: Not Found
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+      summary: Deactivate User
+      tags:
+      - users
+  /api/users/{id}/password:
+    patch:
+      consumes:
+      - application/json
+      description: Change user's password with current password verification
+      parameters:
+      - description: User ID
+        in: path
+        name: id
+        required: true
+        type: string
+      - description: Password payload
+        in: body
+        name: payload
+        required: true
+        schema:
+          $ref: '#/definitions/httpserver.ChangePasswordRequest'
+      produces:
+      - application/json
+      responses:
+        "204":
+          description: No Content
+        "400":
+          description: Bad Request
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+        "401":
+          description: Unauthorized
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+        "404":
+          description: Not Found
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+      summary: Change User Password
+      tags:
+      - users
+  /api/users/{id}/profile:
+    patch:
+      consumes:
+      - application/json
+      description: Update user's name and phone
+      parameters:
+      - description: User ID
+        in: path
+        name: id
+        required: true
+        type: string
+      - description: Profile payload
+        in: body
+        name: payload
+        required: true
+        schema:
+          $ref: '#/definitions/httpserver.UpdateProfileRequest'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/httpserver.UserResponse'
+        "400":
+          description: Bad Request
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+        "404":
+          description: Not Found
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+      summary: Update User Profile
+      tags:
+      - users
+  /api/users/by-email:
+    get:
+      description: Get a user by email
+      parameters:
+      - description: User Email
+        in: query
+        name: email
+        required: true
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/httpserver.UserResponse'
+        "400":
+          description: Bad Request
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+        "404":
+          description: Not Found
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+      summary: Get User By Email
+      tags:
+      - users
   /healthcheck:
     get:
       description: Check if server is alive
@@ -203,6 +502,8 @@ paths:
             additionalProperties:
               type: string
             type: object
+      security:
+      - BearerAuth: []
       summary: Health Check
       tags:
       - health

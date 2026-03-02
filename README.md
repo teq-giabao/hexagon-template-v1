@@ -1,6 +1,6 @@
-# Hexagon Go REST API
+# Project Probation: Hotel Booking System
 
-A Go REST API project following Hexagonal Architecture principles, featuring contact management with HTTP endpoints, PostgreSQL persistence, Sentry error reporting, and comprehensive testing with testcontainers.
+A Go REST API robust backend for a Hotel Booking System following Hexagonal Architecture principles. It features user authentication (register/login), hotel and room search, real-time availability checking, booking management, and simulated payments. The system is engineered to guarantee strict data consistency and entirely prevent double bookings under any concurrent scenarios, utilizing PostgreSQL persistence, Sentry error reporting, and comprehensive testing with testcontainers.
 
 ---
 
@@ -59,12 +59,12 @@ graph TB
 ```
 
 **Layers:**
-- **Domain Layer** ([`contact/`](contact/)): Business entities, validation logic, and interface definitions (`Service`, `Repository`)
-- **Application Layer** ([`contact/usecase.go`](contact/usecase.go)): Business logic implementation (use cases) that coordinates between domain and infrastructure
+- **Domain Layer** ([`user/`](user/)): User entity, validation logic, and interface definitions (`Service`, `Repository`)
+- **Application Layer** ([`user/usecase.go`](user/usecase.go), [`auth/usecase.go`](auth/usecase.go)): Business logic implementation (user management + authentication)
 - **Infrastructure Layer**: Adapters for external dependencies
   - [`httpserver/`](httpserver/) - Echo web framework HTTP handlers
   - [`postgres/`](postgres/) - GORM database implementation
-  - [`pkg/`](pkg/) - Cross-cutting concerns (config, sentry, logging)
+  - [`pkg/`](pkg/) - Cross-cutting concerns (config, sentry, logging, hashing, jwt, oauth)
 
 **Key Principles:**
 - Dependencies point inward: Infrastructure depends on domain, never the reverse
@@ -120,6 +120,8 @@ graph TB
   - Builds to `tmp/main` from `cmd/httpserver/`
   - Auto-restarts on file changes
 - Use `make lint` to validate code quality
+- Use `make format` to run `gofmt -w .`
+- Use `make swag` to generate Swagger docs from annotations
 - Integration tests use `testcontainers` for isolated PostgreSQL instances
 
 ---
@@ -174,14 +176,16 @@ cfg, _ := config.LoadConfig()
 
 // 2. Initialize infrastructure (database)
 db, _ := postgres.NewConnection(postgres.Options{...})
-contactRepo := postgres.NewContactRepository(db)
+userRepo := postgres.NewUserRepository(db)
 
 // 3. Create use cases
-contactService := contact.NewUsecase(contactRepo)
+userService := user.NewUsecase(userRepo, hashing.NewBcryptHasher())
+authService := auth.NewUsecase(userRepo, postgres.NewLoginAttemptRepository(db), ...)
 
 // 4. Inject into server
 server := httpserver.Default()
-server.ContactService = contactService
+server.UserService = userService
+server.AuthService = authService
 server.Addr = fmt.Sprintf(":%d", cfg.Port)
 server.Start()
 ```
@@ -215,7 +219,7 @@ go run ./cmd/migrate
 sql-migrate new -env="development" create-your-migration-name
 ```
 
-This creates a new file in `migrations/` with timestamp prefix (e.g., `20260122111217-create-contacts-table.sql`).
+This creates a new file in `migrations/` with timestamp prefix (e.g., `20260202161352-create-users-table.sql`).
 
 ---
 
@@ -226,12 +230,12 @@ The project includes comprehensive unit and integration tests using `testify` fo
 ### Test Strategy
 
 **1. Unit Tests** - Mock dependencies using `testify/mock`:
-- [`contact/usecase_test.go`](contact/usecase_test.go) - Mocks Repository to test business logic
-- [`httpserver/contact_test.go`](httpserver/contact_test.go) - Mocks Service to test HTTP handlers
+- [`user/usecase_test.go`](user/usecase_test.go) - Mocks repository/hasher to test user business logic
+- [`httpserver/user_test.go`](httpserver/user_test.go) - Mocks user service to test user HTTP handlers
 
 **2. Integration Tests** - Uses real PostgreSQL via `testcontainers`:
-- [`httpserver/contact_integration_test.go`](httpserver/contact_integration_test.go) - Full stack testing
-- [`postgres/contact_test.go`](postgres/contact_test.go) - Database layer testing
+- [`httpserver/server_integration_test.go`](httpserver/server_integration_test.go) - Full stack testing setup
+- [`postgres/postgres_test.go`](postgres/postgres_test.go) - Database layer testing utilities
 
 ### Running Tests
 
@@ -240,7 +244,7 @@ The project includes comprehensive unit and integration tests using `testify` fo
 make test
 
 # Run specific test
-go test ./contact/... -v
+go test ./user/... -v
 
 # Run with coverage report
 go test -cover -coverprofile=coverage.out ./...
@@ -267,10 +271,23 @@ make lint
 ```
 
 This runs multiple linters including:
-- `gofmt`, `goimports` - Code formatting
 - `govet` - Static analysis
 - `errcheck` - Unchecked errors
 - And more...
+
+Formatting is run separately:
+
+```shell
+make format
+```
+
+Generate Swagger docs:
+
+```shell
+make swag
+# equivalent to:
+swag init -g cmd/httpserver/main.go
+```
 
 ---
 
@@ -297,26 +314,33 @@ make local-db  # Start PostgreSQL
 cmd/
   httpserver/          # HTTP server entrypoint
   migrate/            # Database migration entrypoint
-contact/
-  contact.go          # Domain entity with validation
-  usecase.go          # Service/Repository interfaces + implementation
-  usecase_test.go     # Unit tests with mocks
+auth/
+  usecase.go          # Authentication use cases (login/refresh/oauth)
 httpserver/
   server.go           # Echo server setup & middleware
-  contact.go          # Contact HTTP handlers
+  user.go             # User HTTP handlers
+  auth.go             # Auth HTTP handlers
   health.go           # Health check handler
-  request.go          # Request/response DTOs
+  request.go          # Request DTOs
+  response.go         # Response DTOs
   *_test.go           # Unit tests
   *_integration_test.go  # Integration tests
 postgres/
   postgres.go         # Database connection
-  contact.go          # Contact repository (GORM)
-  contact_test.go     # Repository integration tests
+  user.go             # User repository (GORM)
+  login_attempt.go    # Login attempt repository (GORM)
   postgres_test.go    # Shared test utilities
+user/
+  user.go             # User entity + validation rules
+  usecase.go          # User service/repository interfaces + implementation
+  usecase_test.go     # Unit tests with mocks
 errs/
   error.go            # Custom error types & codes
 pkg/
   config/             # Configuration loader (envconfig)
+  hashing/            # Password hashing
+  jwt/                # JWT token provider
+  oauth/google/       # Google OAuth provider
   sentry/             # Sentry error reporting
 migrations/           # SQL migration files (sql-migrate)
 tools/compose/        # Docker Compose files
@@ -327,13 +351,13 @@ tools/compose/        # Docker Compose files
 **Dependency Injection:**
 ```go
 // Domain defines interface
-type Service interface { AddContact(context.Context, Contact) error }
+type Service interface { AddUser(context.Context, User) error }
 
 // Infrastructure implements it
 type Usecase struct { r Repository }
 
 // Server depends on interface, not implementation
-type Server struct { ContactService contact.Service }
+type Server struct { UserService user.Service }
 ```
 
 **Error Handling:**
@@ -360,4 +384,6 @@ make test        # Run all tests with coverage
 make local-db    # Start PostgreSQL in Docker
 make db/migrate  # Run database migrations
 make lint        # Run golangci-lint
+make format      # Format Go code (gofmt -w .)
+make swag        # Generate Swagger docs
 ```

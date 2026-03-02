@@ -18,5 +18,7 @@ func TestHealthcheck(t *testing.T) {
 	server.Router.ServeHTTP(rec, req)
 
 	assert.Equal(t, http.StatusOK, rec.Code)
-	assert.Equal(t, `{"status":"OK"}`+"\n", rec.Body.String())
+	assert.Contains(t, rec.Body.String(), `"code":"200"`)
+	assert.Contains(t, rec.Body.String(), `"message":"OK"`)
+	assert.Contains(t, rec.Body.String(), `"status":"OK"`)
 }

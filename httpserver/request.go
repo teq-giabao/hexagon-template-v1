@@ -4,29 +4,44 @@ import (
 	"hexagon/user"
 )
 
-type AddContactRequest struct {
-	Name  string `json:"name"`
-	Phone string `json:"phone"`
-}
 type AddUserRequest struct {
-	Username string `json:"username"`
-	Email    string `json:"email"`
-	Password string `json:"password"`
+	Name     string `json:"name" validate:"required,notblank,min=2,max=100"`
+	Email    string `json:"email" validate:"required,email,max=255"`
+	Phone    string `json:"phone" validate:"omitempty,numeric,len=10"`
+	Password string `json:"password" validate:"required,notblank,password"`
 }
 
 func (r AddUserRequest) ToUser() user.User {
 	return user.User{
-		Username: r.Username,
+		Name:     r.Name,
 		Email:    r.Email,
+		Phone:    r.Phone,
 		Password: r.Password,
 	}
 }
 
+type RegisterRequest struct {
+	Name     string `json:"name" validate:"required,notblank,min=2,max=100"`
+	Email    string `json:"email" validate:"required,email,max=255"`
+	Phone    string `json:"phone" validate:"omitempty,numeric,len=10"`
+	Password string `json:"password" validate:"required,notblank,password"`
+}
+
 type LoginRequest struct {
-	Email    string `json:"email"`
-	Password string `json:"password"`
+	Email    string `json:"email" validate:"required,email,max=255"`
+	Password string `json:"password" validate:"required,notblank,max=72"`
+}
+
+type UpdateProfileRequest struct {
+	Name  string `json:"name" validate:"required,notblank,min=2,max=100"`
+	Phone string `json:"phone" validate:"omitempty,numeric,len=10"`
+}
+
+type ChangePasswordRequest struct {
+	CurrentPassword string `json:"currentPassword" validate:"required,notblank,max=72"`
+	NewPassword     string `json:"newPassword" validate:"required,notblank,password,nefield=CurrentPassword"`
 }
 
 type RefreshRequest struct {
-	RefreshToken string `json:"refresh_token"` // nolint: tagliatelle
+	RefreshToken string `json:"refreshToken" validate:"required,notblank"`
 }

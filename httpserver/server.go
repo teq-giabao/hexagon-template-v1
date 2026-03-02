@@ -28,7 +28,7 @@ type Server struct {
 
 	AuthService auth.Service
 
-	JWTSecret string 
+	JWTSecret string
 }
 
 func Default(cfg *config.Config) *Server {
@@ -37,6 +37,7 @@ func Default(cfg *config.Config) *Server {
 		Addr:         ":8080",
 		AllowOrigins: []string{"*"},
 	}
+	s.Router.Validator = NewRequestValidator()
 
 	s.Router.HTTPErrorHandler = customHTTPErrorHandler
 	s.RegisterGlobalMiddlewares()
@@ -49,7 +50,7 @@ func Default(cfg *config.Config) *Server {
 	// PRIVATE
 	private := api.Group("")
 	private.Use(echojwt.WithConfig(echojwt.Config{
-		SigningKey: []byte(cfg.Auth.JWTSecret),
+		SigningKey:    []byte(cfg.Auth.JWTSecret),
 		SigningMethod: "HS256",
 	}))
 	s.RegisterPrivateRoutes(private)
@@ -88,6 +89,7 @@ func (s *Server) Shutdown(ctx context.Context) error {
 func customHTTPErrorHandler(err error, c echo.Context) {
 	code := http.StatusInternalServerError
 	message := "Internal server error"
+	info := err.Error()
 
 	// Check if it's an Echo HTTPError
 	if he, ok := err.(*echo.HTTPError); ok {
@@ -119,7 +121,11 @@ func customHTTPErrorHandler(err error, c echo.Context) {
 
 	// Don't write response if already committed
 	if !c.Response().Committed {
-		err = c.JSON(code, map[string]string{"error": message})
+		err = c.JSON(code, APIErrorResponse{
+			Code:    defaultHTTPStatusCodeMapper.Code(code),
+			Message: message,
+			Info:    info,
+		})
 		if err != nil {
 			c.Logger().Error(err)
 		}
@@ -139,4 +145,3 @@ func (s *Server) RegisterPublicRoutes(g *echo.Group) {
 func (s *Server) RegisterPrivateRoutes(g *echo.Group) {
 	// s.RegisterPrivateContactRoutes(g)
 }
-
