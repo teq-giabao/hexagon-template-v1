@@ -65,25 +65,25 @@ func NewProvider(clientID, clientSecret, redirectURL string) (*Provider, error) 
 	clientSecret = strings.TrimSpace(clientSecret)
 	redirectURL = strings.TrimSpace(redirectURL)
 
-    if clientID == "" || clientSecret == "" || redirectURL == "" {
-        return nil, errors.New("google oauth: missing required credentials")
-    }
+	if clientID == "" || clientSecret == "" || redirectURL == "" {
+		return nil, errors.New("google oauth: missing required credentials")
+	}
 
-    p := &Provider{
-        config: &oauth2.Config{
-            ClientID:     clientID,
-            ClientSecret: clientSecret,
-            RedirectURL:  redirectURL,
-            Endpoint:     google.Endpoint,
-            Scopes: []string{
-                "openid",
-                "email",
-                "profile",
-            },
-        },
-    }
+	p := &Provider{
+		config: &oauth2.Config{
+			ClientID:     clientID,
+			ClientSecret: clientSecret,
+			RedirectURL:  redirectURL,
+			Endpoint:     google.Endpoint,
+			Scopes: []string{
+				"openid",
+				"email",
+				"profile",
+			},
+		},
+	}
 
-    return p, nil
+	return p, nil
 }
 
 func (p *Provider) AuthCodeURL(state string) string {

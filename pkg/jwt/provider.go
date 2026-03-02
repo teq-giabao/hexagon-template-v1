@@ -70,10 +70,8 @@ func (p *JWTProvider) ParseRefreshToken(refreshToken string) (user.User, error) 
 		return user.User{}, errors.New("invalid token type")
 	}
 
-	var userID int64
-	if v, ok := claims["user_id"].(float64); ok {
-		userID = int64(v)
-	} else {
+	userID, ok := claims["user_id"].(string)
+	if !ok || userID == "" {
 		return user.User{}, errors.New("invalid user id")
 	}
 

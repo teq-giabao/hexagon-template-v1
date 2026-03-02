@@ -197,7 +197,8 @@ func TestCustomErrorHandler(t *testing.T) {
 			var body map[string]string
 			err := json.Unmarshal(response.Body.Bytes(), &body)
 			require.NoError(t, err)
-			assert.Equal(t, tt.expectedMessage, body["error"])
+			assert.Equal(t, tt.expectedMessage, body["message"])
+			assert.NotEmpty(t, body["code"])
 		})
 	}
 }
