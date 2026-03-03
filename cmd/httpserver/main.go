@@ -13,6 +13,7 @@ package main
 import (
 	"fmt"
 	"hexagon/auth"
+	"hexagon/hotel"
 	"hexagon/httpserver"
 	"hexagon/pkg/config"
 	"hexagon/pkg/hashing"
@@ -67,12 +68,14 @@ func main() {
 	}
 
 	userRepo := postgres.NewUserRepository(db)
+	hotelRepo := postgres.NewHotelRepository(db)
 	refreshTokenRepo := postgres.NewRefreshTokenRepository(db)
 	userService := user.NewUsecaseWithSession(
 		userRepo,
 		hashing.NewBcryptHasher(),
 		refreshTokenRepo,
 	)
+	hotelService := hotel.NewUsecase(hotelRepo)
 	googleProvider, err := oauthgoogle.NewProvider(
 		cfg.Auth.GoogleClientID,
 		cfg.Auth.GoogleClientSecret,
@@ -101,6 +104,7 @@ func main() {
 	server.JWTSecret = cfg.Auth.JWTSecret
 	server.UserService = userService
 	server.AuthService = authService
+	server.HotelService = hotelService
 	server.Addr = fmt.Sprintf(":%d", cfg.Port)
 
 	slog.Info("server started!")

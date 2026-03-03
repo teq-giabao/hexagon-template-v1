@@ -4,6 +4,7 @@ import (
 	"context"
 	"hexagon/auth"
 	"hexagon/errs"
+	"hexagon/hotel"
 	"hexagon/pkg/config"
 	"hexagon/user"
 	"net/http"
@@ -27,6 +28,8 @@ type Server struct {
 	UserService user.Service
 
 	AuthService auth.Service
+
+	HotelService hotel.Service
 
 	JWTSecret string
 }
@@ -59,6 +62,7 @@ func Default(cfg *config.Config) *Server {
 	s.RegisterSwaggerRoutes()
 	s.RegisterUserRoutes()
 	s.RegisterAuthRoutes()
+	s.RegisterHotelRoutes()
 	return &s
 }
 
