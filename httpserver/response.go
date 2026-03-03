@@ -1,6 +1,7 @@
 package httpserver
 
 import (
+	"hexagon/hotel"
 	"hexagon/user"
 	"net/http"
 	"strconv"
@@ -99,6 +100,82 @@ func toUserResponses(users []user.User) []UserResponse {
 	resp := make([]UserResponse, len(users))
 	for i, u := range users {
 		resp[i] = toUserResponse(u)
+	}
+	return resp
+}
+
+type HotelResponse struct {
+	ID                 string                       `json:"id"`
+	Name               string                       `json:"name"`
+	Description        string                       `json:"description"`
+	Address            string                       `json:"address"`
+	City               string                       `json:"city"`
+	Rating             float64                      `json:"rating"`
+	CheckInTime        time.Time                    `json:"checkInTime"`
+	CheckOutTime       time.Time                    `json:"checkOutTime"`
+	DefaultChildMaxAge int                          `json:"defaultChildMaxAge"`
+	Images             []HotelImageResponse         `json:"images"`
+	PaymentOptions     []HotelPaymentOptionResponse `json:"paymentOptions"`
+	CreatedAt          time.Time                    `json:"createdAt"`
+	UpdatedAt          time.Time                    `json:"updatedAt"`
+}
+
+type HotelImageResponse struct {
+	ID      string `json:"id"`
+	HotelID string `json:"hotelId"`
+	URL     string `json:"url"`
+	IsCover bool   `json:"isCover"`
+}
+
+type HotelPaymentOptionResponse struct {
+	ID            string `json:"id"`
+	HotelID       string `json:"hotelId"`
+	PaymentOption string `json:"paymentOption"`
+	Enabled       bool   `json:"enabled"`
+}
+
+func toHotelResponse(h hotel.Hotel) HotelResponse {
+	images := make([]HotelImageResponse, len(h.Images))
+	for i := range h.Images {
+		images[i] = HotelImageResponse{
+			ID:      h.Images[i].ID,
+			HotelID: h.Images[i].HotelID,
+			URL:     h.Images[i].URL,
+			IsCover: h.Images[i].IsCover,
+		}
+	}
+
+	paymentOptions := make([]HotelPaymentOptionResponse, len(h.PaymentOptions))
+	for i := range h.PaymentOptions {
+		paymentOptions[i] = HotelPaymentOptionResponse{
+			ID:            h.PaymentOptions[i].ID,
+			HotelID:       h.PaymentOptions[i].HotelID,
+			PaymentOption: string(h.PaymentOptions[i].PaymentOption),
+			Enabled:       h.PaymentOptions[i].Enabled,
+		}
+	}
+
+	return HotelResponse{
+		ID:                 h.ID,
+		Name:               h.Name,
+		Description:        h.Description,
+		Address:            h.Address,
+		City:               h.City,
+		Rating:             h.Rating,
+		CheckInTime:        h.CheckInTime,
+		CheckOutTime:       h.CheckOutTime,
+		DefaultChildMaxAge: h.DefaultChildMaxAge,
+		Images:             images,
+		PaymentOptions:     paymentOptions,
+		CreatedAt:          h.CreatedAt,
+		UpdatedAt:          h.UpdatedAt,
+	}
+}
+
+func toHotelResponses(hotels []hotel.Hotel) []HotelResponse {
+	resp := make([]HotelResponse, len(hotels))
+	for i := range hotels {
+		resp[i] = toHotelResponse(hotels[i])
 	}
 	return resp
 }

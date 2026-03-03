@@ -17,6 +17,43 @@ definitions:
         type: string
       result: {}
     type: object
+  httpserver.AddHotelRequest:
+    properties:
+      address:
+        maxLength: 500
+        type: string
+      checkInTime:
+        type: string
+      checkOutTime:
+        type: string
+      city:
+        maxLength: 255
+        type: string
+      defaultChildMaxAge:
+        maximum: 17
+        minimum: 0
+        type: integer
+      description:
+        maxLength: 2000
+        type: string
+      images:
+        items:
+          $ref: '#/definitions/httpserver.HotelImageRequest'
+        type: array
+      name:
+        maxLength: 255
+        type: string
+      paymentOptions:
+        items:
+          $ref: '#/definitions/httpserver.HotelPaymentOptionRequest'
+        type: array
+    required:
+    - address
+    - checkInTime
+    - checkOutTime
+    - city
+    - name
+    type: object
   httpserver.AddUserRequest:
     properties:
       email:
@@ -53,6 +90,29 @@ definitions:
         type: string
     required:
     - email
+    type: object
+  httpserver.HotelImageRequest:
+    properties:
+      isCover:
+        type: boolean
+      url:
+        maxLength: 1000
+        type: string
+    required:
+    - url
+    type: object
+  httpserver.HotelPaymentOptionRequest:
+    properties:
+      enabled:
+        type: boolean
+      paymentOption:
+        enum:
+        - immediate
+        - pay_at_hotel
+        - deferred
+        type: string
+    required:
+    - paymentOption
     type: object
   httpserver.LoginRequest:
     properties:
@@ -428,6 +488,72 @@ paths:
       summary: Reset Password
       tags:
       - auth
+  /api/hotels:
+    get:
+      description: Get all hotels
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/httpserver.APISuccessResponse'
+      summary: List Hotels
+      tags:
+      - hotels
+    post:
+      consumes:
+      - application/json
+      description: Create a new hotel. `rating` is initialized by system (default
+        0), and `defaultChildMaxAge` defaults to 11 when omitted.
+      parameters:
+      - description: Hotel payload
+        in: body
+        name: payload
+        required: true
+        schema:
+          $ref: '#/definitions/httpserver.AddHotelRequest'
+      produces:
+      - application/json
+      responses:
+        "201":
+          description: Created
+          schema:
+            $ref: '#/definitions/httpserver.APISuccessResponse'
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/httpserver.APIErrorResponse'
+      summary: Create Hotel
+      tags:
+      - hotels
+  /api/hotels/{hotel_id}:
+    get:
+      description: Get hotel detail by id
+      parameters:
+      - description: Hotel ID
+        in: path
+        name: hotel_id
+        required: true
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/httpserver.APISuccessResponse'
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/httpserver.APIErrorResponse'
+        "404":
+          description: Not Found
+          schema:
+            $ref: '#/definitions/httpserver.APIErrorResponse'
+      summary: Get Hotel By ID
+      tags:
+      - hotels
   /api/users:
     get:
       description: Get all users

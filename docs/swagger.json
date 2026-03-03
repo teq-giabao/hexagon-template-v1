@@ -443,6 +443,105 @@
                 }
             }
         },
+        "/api/hotels": {
+            "get": {
+                "description": "Get all hotels",
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "hotels"
+                ],
+                "summary": "List Hotels",
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "$ref": "#/definitions/httpserver.APISuccessResponse"
+                        }
+                    }
+                }
+            },
+            "post": {
+                "description": "Create a new hotel. `rating` is initialized by system (default 0), and `defaultChildMaxAge` defaults to 11 when omitted.",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "hotels"
+                ],
+                "summary": "Create Hotel",
+                "parameters": [
+                    {
+                        "description": "Hotel payload",
+                        "name": "payload",
+                        "in": "body",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/definitions/httpserver.AddHotelRequest"
+                        }
+                    }
+                ],
+                "responses": {
+                    "201": {
+                        "description": "Created",
+                        "schema": {
+                            "$ref": "#/definitions/httpserver.APISuccessResponse"
+                        }
+                    },
+                    "400": {
+                        "description": "Bad Request",
+                        "schema": {
+                            "$ref": "#/definitions/httpserver.APIErrorResponse"
+                        }
+                    }
+                }
+            }
+        },
+        "/api/hotels/{hotel_id}": {
+            "get": {
+                "description": "Get hotel detail by id",
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "hotels"
+                ],
+                "summary": "Get Hotel By ID",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "Hotel ID",
+                        "name": "hotel_id",
+                        "in": "path",
+                        "required": true
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "$ref": "#/definitions/httpserver.APISuccessResponse"
+                        }
+                    },
+                    "400": {
+                        "description": "Bad Request",
+                        "schema": {
+                            "$ref": "#/definitions/httpserver.APIErrorResponse"
+                        }
+                    },
+                    "404": {
+                        "description": "Not Found",
+                        "schema": {
+                            "$ref": "#/definitions/httpserver.APIErrorResponse"
+                        }
+                    }
+                }
+            }
+        },
         "/api/users": {
             "get": {
                 "description": "Get all users",
@@ -819,6 +918,57 @@
                 "result": {}
             }
         },
+        "httpserver.AddHotelRequest": {
+            "type": "object",
+            "required": [
+                "address",
+                "checkInTime",
+                "checkOutTime",
+                "city",
+                "name"
+            ],
+            "properties": {
+                "address": {
+                    "type": "string",
+                    "maxLength": 500
+                },
+                "checkInTime": {
+                    "type": "string"
+                },
+                "checkOutTime": {
+                    "type": "string"
+                },
+                "city": {
+                    "type": "string",
+                    "maxLength": 255
+                },
+                "defaultChildMaxAge": {
+                    "type": "integer",
+                    "maximum": 17,
+                    "minimum": 0
+                },
+                "description": {
+                    "type": "string",
+                    "maxLength": 2000
+                },
+                "images": {
+                    "type": "array",
+                    "items": {
+                        "$ref": "#/definitions/httpserver.HotelImageRequest"
+                    }
+                },
+                "name": {
+                    "type": "string",
+                    "maxLength": 255
+                },
+                "paymentOptions": {
+                    "type": "array",
+                    "items": {
+                        "$ref": "#/definitions/httpserver.HotelPaymentOptionRequest"
+                    }
+                }
+            }
+        },
         "httpserver.AddUserRequest": {
             "type": "object",
             "required": [
@@ -869,6 +1019,40 @@
                 "email": {
                     "type": "string",
                     "maxLength": 255
+                }
+            }
+        },
+        "httpserver.HotelImageRequest": {
+            "type": "object",
+            "required": [
+                "url"
+            ],
+            "properties": {
+                "isCover": {
+                    "type": "boolean"
+                },
+                "url": {
+                    "type": "string",
+                    "maxLength": 1000
+                }
+            }
+        },
+        "httpserver.HotelPaymentOptionRequest": {
+            "type": "object",
+            "required": [
+                "paymentOption"
+            ],
+            "properties": {
+                "enabled": {
+                    "type": "boolean"
+                },
+                "paymentOption": {
+                    "type": "string",
+                    "enum": [
+                        "immediate",
+                        "pay_at_hotel",
+                        "deferred"
+                    ]
                 }
             }
         },

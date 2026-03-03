@@ -375,14 +375,6 @@ func generateOAuthState(length int) (string, error) {
 	return base64.RawURLEncoding.EncodeToString(buf), nil
 }
 
-func extractBearerToken(authorization string) string {
-	const bearerPrefix = "Bearer "
-	if !strings.HasPrefix(authorization, bearerPrefix) {
-		return ""
-	}
-	return strings.TrimSpace(strings.TrimPrefix(authorization, bearerPrefix))
-}
-
 // handleRefresh godoc
 // @Summary Refresh Access Token
 // @Description Refresh access token using refresh token
