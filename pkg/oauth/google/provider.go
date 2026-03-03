@@ -65,25 +65,25 @@ func NewProvider(clientID, clientSecret, redirectURL string) (*Provider, error) 
 	clientSecret = strings.TrimSpace(clientSecret)
 	redirectURL = strings.TrimSpace(redirectURL)
 
-    if clientID == "" || clientSecret == "" || redirectURL == "" {
-        return nil, errors.New("google oauth: missing required credentials")
-    }
+	if clientID == "" || clientSecret == "" || redirectURL == "" {
+		return nil, errors.New("google oauth: missing required credentials")
+	}
 
-    p := &Provider{
-        config: &oauth2.Config{
-            ClientID:     clientID,
-            ClientSecret: clientSecret,
-            RedirectURL:  redirectURL,
-            Endpoint:     google.Endpoint,
-            Scopes: []string{
-                "openid",
-                "email",
-                "profile",
-            },
-        },
-    }
+	p := &Provider{
+		config: &oauth2.Config{
+			ClientID:     clientID,
+			ClientSecret: clientSecret,
+			RedirectURL:  redirectURL,
+			Endpoint:     google.Endpoint,
+			Scopes: []string{
+				"openid",
+				"email",
+				"profile",
+			},
+		},
+	}
 
-    return p, nil
+	return p, nil
 }
 
 func (p *Provider) AuthCodeURL(state string) string {
@@ -116,6 +116,7 @@ func (p *Provider) Exchange(ctx context.Context, code string) (auth.OAuthUser, e
 	}
 
 	var payload struct {
+		ID            string       `json:"id"`
 		Email         string       `json:"email"`
 		Name          string       `json:"name"`
 		VerifiedEmail flexibleBool `json:"verified_email"` // nolint: tagliatelle
@@ -125,8 +126,9 @@ func (p *Provider) Exchange(ctx context.Context, code string) (auth.OAuthUser, e
 	}
 
 	return auth.OAuthUser{
-		Email:         payload.Email,
-		Name:          payload.Name,
-		EmailVerified: bool(payload.VerifiedEmail),
+		ProviderUserID: payload.ID,
+		Email:          payload.Email,
+		Name:           payload.Name,
+		EmailVerified:  bool(payload.VerifiedEmail),
 	}, nil
 }

@@ -1,4 +1,4 @@
-.PHONY: run test local-db lint db/migrate
+.PHONY: run test local-db lint format swag db/migrate
 
 run:
 	air -c .air.toml
@@ -14,6 +14,12 @@ local-db:
 lint:
 	golangci-lint version
 	golangci-lint run
+
+format:
+	gofmt -w .
+
+swag:
+	swag init -g cmd/httpserver/main.go
 
 db/migrate:
 	go run ./cmd/migrate
