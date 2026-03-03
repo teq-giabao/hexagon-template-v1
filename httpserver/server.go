@@ -36,6 +36,7 @@ func Default(cfg *config.Config) *Server {
 		Router:       echo.New(),
 		Addr:         ":8080",
 		AllowOrigins: []string{"*"},
+		JWTSecret:    cfg.Auth.JWTSecret,
 	}
 	s.Router.Validator = NewRequestValidator()
 

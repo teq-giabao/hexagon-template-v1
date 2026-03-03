@@ -11,6 +11,8 @@ import (
 	"hexagon/auth"
 	"hexagon/user"
 
+	"github.com/golang-jwt/jwt/v5"
+	echojwt "github.com/labstack/echo-jwt/v4"
 	"github.com/labstack/echo/v4"
 	"github.com/labstack/echo/v4/middleware"
 	"golang.org/x/time/rate"
@@ -20,9 +22,15 @@ func (s *Server) RegisterAuthRoutes() {
 	authGroup := s.Router.Group("/api/auth")
 	authGroup.POST("/register", s.handleRegister)
 	authGroup.POST("/logout", s.handleLogout)
-	authGroup.GET("/me", s.handleMe)
 	authGroup.GET("/google/login", s.handleGoogleLogin)
 	authGroup.GET("/google/callback", s.handleGoogleCallback)
+
+	protectedAuth := s.Router.Group("/api/auth")
+	protectedAuth.Use(echojwt.WithConfig(echojwt.Config{
+		SigningKey:    []byte(s.JWTSecret),
+		SigningMethod: "HS256",
+	}))
+	protectedAuth.GET("/me", s.handleMe)
 
 	sensitiveAuth := s.Router.Group("/api/auth")
 	sensitiveAuth.Use(authSensitiveRateLimiter())
@@ -237,21 +245,28 @@ func (s *Server) handleResetPassword(c echo.Context) error {
 // @Description Get current authenticated user information
 // @Tags auth
 // @Produce json
-// @Param Authorization header string true "Bearer <accessToken>"
+// @Security BearerAuth
 // @Success 200 {object} APISuccessResponse
 // @Failure 401 {object} APIErrorResponse
 // @Failure 500 {object} APIErrorResponse
 // @Router /api/auth/me [get]
 func (s *Server) handleMe(c echo.Context) error {
-	accessToken := extractBearerToken(c.Request().Header.Get("Authorization"))
-	if accessToken == "" {
-		return respondError(c, http.StatusUnauthorized, "invalid access token", "missing bearer token")
+	token, ok := c.Get("user").(*jwt.Token)
+	if !ok || token == nil {
+		return respondError(c, http.StatusUnauthorized, "invalid access token", "missing jwt context")
 	}
-	u, err := s.AuthService.Me(c.Request().Context(), accessToken)
+	claims, ok := token.Claims.(jwt.MapClaims)
+	if !ok {
+		return respondError(c, http.StatusUnauthorized, "invalid access token", "invalid jwt claims")
+	}
+	email, _ := claims["email"].(string)
+	email = strings.TrimSpace(email)
+	if email == "" {
+		return respondError(c, http.StatusUnauthorized, "invalid access token", "missing email claim")
+	}
+
+	u, err := s.UserService.GetUserByEmail(c.Request().Context(), email)
 	if err != nil {
-		if errors.Is(err, auth.ErrInvalidAccessToken) {
-			return respondError(c, http.StatusUnauthorized, "invalid access token", err.Error())
-		}
 		return respondError(c, http.StatusInternalServerError, "internal error", err.Error())
 	}
 	return respondOK(c, toUserResponse(u))
