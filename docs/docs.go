@@ -63,7 +63,7 @@ const docTemplate = `{
         },
         "/api/auth/google/callback": {
             "get": {
-                "description": "Exchange Google OAuth2 code for tokens",
+                "description": "Exchange Google OAuth2 code for tokens. Requires oauth_state cookie set by /api/auth/google/login.",
                 "produces": [
                     "application/json"
                 ],
@@ -201,6 +201,11 @@ const docTemplate = `{
         },
         "/api/auth/logout": {
             "post": {
+                "security": [
+                    {
+                        "BearerAuth": []
+                    }
+                ],
                 "description": "Revoke current refresh token",
                 "consumes": [
                     "application/json"
@@ -253,6 +258,11 @@ const docTemplate = `{
         },
         "/api/auth/me": {
             "get": {
+                "security": [
+                    {
+                        "BearerAuth": []
+                    }
+                ],
                 "description": "Get current authenticated user information",
                 "produces": [
                     "application/json"
@@ -261,15 +271,6 @@ const docTemplate = `{
                     "auth"
                 ],
                 "summary": "Current User",
-                "parameters": [
-                    {
-                        "type": "string",
-                        "description": "Bearer \u003caccessToken\u003e",
-                        "name": "Authorization",
-                        "in": "header",
-                        "required": true
-                    }
-                ],
                 "responses": {
                     "200": {
                         "description": "OK",

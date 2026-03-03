@@ -21,7 +21,6 @@ import (
 func (s *Server) RegisterAuthRoutes() {
 	authGroup := s.Router.Group("/api/auth")
 	authGroup.POST("/register", s.handleRegister)
-	authGroup.POST("/logout", s.handleLogout)
 	authGroup.GET("/google/login", s.handleGoogleLogin)
 	authGroup.GET("/google/callback", s.handleGoogleCallback)
 
@@ -30,6 +29,7 @@ func (s *Server) RegisterAuthRoutes() {
 		SigningKey:    []byte(s.JWTSecret),
 		SigningMethod: "HS256",
 	}))
+	protectedAuth.POST("/logout", s.handleLogout)
 	protectedAuth.GET("/me", s.handleMe)
 
 	sensitiveAuth := s.Router.Group("/api/auth")
@@ -145,6 +145,7 @@ func (s *Server) handleLogin(c echo.Context) error {
 // @Tags auth
 // @Accept json
 // @Produce json
+// @Security BearerAuth
 // @Param payload body LogoutRequest true "Logout payload"
 // @Success 200 {object} APISuccessResponse
 // @Failure 400 {object} APIErrorResponse
@@ -310,7 +311,7 @@ func (s *Server) handleGoogleLogin(c echo.Context) error {
 
 // handleGoogleCallback godoc
 // @Summary Google OAuth Callback
-// @Description Exchange Google OAuth2 code for tokens
+// @Description Exchange Google OAuth2 code for tokens. Requires oauth_state cookie set by /api/auth/google/login.
 // @Tags auth
 // @Produce json
 // @Param code query string true "OAuth code"

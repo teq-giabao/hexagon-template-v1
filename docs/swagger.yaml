@@ -177,7 +177,8 @@ paths:
       - auth
   /api/auth/google/callback:
     get:
-      description: Exchange Google OAuth2 code for tokens
+      description: Exchange Google OAuth2 code for tokens. Requires oauth_state cookie
+        set by /api/auth/google/login.
       parameters:
       - description: OAuth code
         in: query
@@ -297,18 +298,14 @@ paths:
           description: Internal Server Error
           schema:
             $ref: '#/definitions/httpserver.APIErrorResponse'
+      security:
+      - BearerAuth: []
       summary: User Logout
       tags:
       - auth
   /api/auth/me:
     get:
       description: Get current authenticated user information
-      parameters:
-      - description: Bearer <accessToken>
-        in: header
-        name: Authorization
-        required: true
-        type: string
       produces:
       - application/json
       responses:
@@ -324,6 +321,8 @@ paths:
           description: Internal Server Error
           schema:
             $ref: '#/definitions/httpserver.APIErrorResponse'
+      security:
+      - BearerAuth: []
       summary: Current User
       tags:
       - auth
