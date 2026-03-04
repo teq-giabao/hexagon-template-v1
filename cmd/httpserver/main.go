@@ -11,6 +11,7 @@
 package main
 
 import (
+	"context"
 	"fmt"
 	"hexagon/auth"
 	"hexagon/hotel"
@@ -21,7 +22,9 @@ import (
 	resendmailer "hexagon/pkg/mailer/resend"
 	oauthgoogle "hexagon/pkg/oauth/google"
 	"hexagon/pkg/sentry"
+	s3storage "hexagon/pkg/storage/s3"
 	"hexagon/postgres"
+	"hexagon/upload"
 	"hexagon/user"
 	"log/slog"
 	"os"
@@ -105,6 +108,7 @@ func main() {
 	server.UserService = userService
 	server.AuthService = authService
 	server.HotelService = hotelService
+	server.UploadService = createUploadService(cfg)
 	server.Addr = fmt.Sprintf(":%d", cfg.Port)
 
 	slog.Info("server started!")
@@ -112,6 +116,33 @@ func main() {
 		slog.Error("server stopped with error", "error", err)
 		os.Exit(1)
 	}
+}
+
+func createUploadService(cfg *config.Config) upload.Service {
+	return upload.NewUsecase(createImageUploader(cfg))
+}
+
+func createImageUploader(cfg *config.Config) upload.Uploader {
+	if cfg == nil || cfg.Storage.S3Bucket == "" {
+		slog.Warn("s3 uploader is disabled because S3_BUCKET is empty")
+		return nil
+	}
+
+	uploader, err := s3storage.NewUploader(context.Background(), s3storage.Config{
+		Region:          cfg.Storage.S3Region,
+		Bucket:          cfg.Storage.S3Bucket,
+		BaseURL:         cfg.Storage.S3BaseURL,
+		Prefix:          cfg.Storage.S3Prefix,
+		Endpoint:        cfg.Storage.S3Endpoint,
+		AccessKeyID:     cfg.Storage.S3AccessKeyID,
+		SecretAccessKey: cfg.Storage.S3SecretAccessKey,
+		SessionToken:    cfg.Storage.S3SessionToken,
+	})
+	if err != nil {
+		slog.Error("cannot initialize s3 uploader", "error", err)
+		return nil
+	}
+	return uploader
 }
 
 func createResetMailer(cfg *config.Config) auth.PasswordResetMailer {

@@ -134,6 +134,17 @@ type HotelPaymentOptionResponse struct {
 	Enabled       bool   `json:"enabled"`
 }
 
+type UploadImagesResponse struct {
+	Files []UploadedImageResponse `json:"files"`
+}
+
+type UploadedImageResponse struct {
+	FileName    string `json:"fileName"`
+	URL         string `json:"url"`
+	Size        int64  `json:"size"`
+	ContentType string `json:"contentType"`
+}
+
 func toHotelResponse(h hotel.Hotel) HotelResponse {
 	images := make([]HotelImageResponse, len(h.Images))
 	for i := range h.Images {

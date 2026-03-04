@@ -11,6 +11,7 @@ func (s *Server) RegisterHotelRoutes() {
 	s.Router.GET("/api/hotels", s.handleListHotels)
 	s.Router.GET("/api/hotels/:hotel_id", s.handleGetHotelByID)
 	s.Router.POST("/api/hotels", s.handleAddHotel)
+	s.Router.POST("/api/hotels/upload-images", s.handleUploadHotelImages)
 }
 
 // handleListHotels godoc
@@ -75,6 +76,22 @@ func (s *Server) handleAddHotel(c echo.Context) error {
 		return err
 	}
 	return respondCreated(c, toHotelResponse(created))
+}
+
+// handleUploadHotelImages godoc
+// @Summary Upload Hotel Images
+// @Description Upload images to S3 using multipart/form-data field `images`. To upload multiple files, send repeated `images` fields. Swagger 2 UI can only pick one file at a time for this endpoint.
+// @Tags hotels
+// @Accept multipart/form-data
+// @Produce json
+// @Param images formData []file true "Image file. Repeat this field to upload multiple files (e.g. -F \"images=@a.jpg\" -F \"images=@b.jpg\")"
+// @Success 201 {object} APISuccessResponse
+// @Failure 400 {object} APIErrorResponse
+// @Failure 501 {object} APIErrorResponse
+// @Failure 500 {object} APIErrorResponse
+// @Router /api/hotels/upload-images [post]
+func (s *Server) handleUploadHotelImages(c echo.Context) error {
+	return s.handleUploadImages(c, "hotel-images")
 }
 
 func parseHotelTimes(checkIn, checkOut string) (time.Time, time.Time, error) {
