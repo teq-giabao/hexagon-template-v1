@@ -24,6 +24,7 @@ import (
 	"hexagon/pkg/sentry"
 	s3storage "hexagon/pkg/storage/s3"
 	"hexagon/postgres"
+	"hexagon/room"
 	"hexagon/upload"
 	"hexagon/user"
 	"log/slog"
@@ -72,6 +73,7 @@ func main() {
 
 	userRepo := postgres.NewUserRepository(db)
 	hotelRepo := postgres.NewHotelRepository(db)
+	roomRepo := postgres.NewRoomRepository(db)
 	refreshTokenRepo := postgres.NewRefreshTokenRepository(db)
 	userService := user.NewUsecaseWithSession(
 		userRepo,
@@ -79,6 +81,7 @@ func main() {
 		refreshTokenRepo,
 	)
 	hotelService := hotel.NewUsecase(hotelRepo)
+	roomService := room.NewUsecase(roomRepo)
 	googleProvider, err := oauthgoogle.NewProvider(
 		cfg.Auth.GoogleClientID,
 		cfg.Auth.GoogleClientSecret,
@@ -108,6 +111,7 @@ func main() {
 	server.UserService = userService
 	server.AuthService = authService
 	server.HotelService = hotelService
+	server.RoomService = roomService
 	server.UploadService = createUploadService(cfg)
 	server.Addr = fmt.Sprintf(":%d", cfg.Port)
 
