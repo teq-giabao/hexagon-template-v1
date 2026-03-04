@@ -35,6 +35,17 @@ type Config struct {
 		ResendFromEmail    string `envconfig:"AUTH_RESEND_FROM_EMAIL"`
 		ResendFromName     string `envconfig:"AUTH_RESEND_FROM_NAME"`
 	}
+
+	Storage struct {
+		S3Region          string `envconfig:"S3_REGION"`
+		S3Bucket          string `envconfig:"S3_BUCKET"`
+		S3BaseURL         string `envconfig:"S3_BASE_URL"`
+		S3Prefix          string `envconfig:"S3_PREFIX"`
+		S3Endpoint        string `envconfig:"S3_ENDPOINT"`
+		S3AccessKeyID     string `envconfig:"S3_ACCESS_KEY_ID"`
+		S3SecretAccessKey string `envconfig:"S3_SECRET_ACCESS_KEY"`
+		S3SessionToken    string `envconfig:"S3_SESSION_TOKEN"`
+	}
 }
 
 func LoadConfig() (*Config, error) {

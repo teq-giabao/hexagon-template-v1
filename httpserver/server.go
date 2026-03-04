@@ -6,6 +6,7 @@ import (
 	"hexagon/errs"
 	"hexagon/hotel"
 	"hexagon/pkg/config"
+	"hexagon/upload"
 	"hexagon/user"
 	"net/http"
 
@@ -30,6 +31,8 @@ type Server struct {
 	AuthService auth.Service
 
 	HotelService hotel.Service
+
+	UploadService upload.Service
 
 	JWTSecret string
 }

@@ -507,6 +507,60 @@ const docTemplate = `{
                 }
             }
         },
+        "/api/hotels/upload-images": {
+            "post": {
+                "description": "Upload images to S3 using multipart/form-data field ` + "`" + `images` + "`" + `. To upload multiple files, send repeated ` + "`" + `images` + "`" + ` fields. Swagger 2 UI can only pick one file at a time for this endpoint.",
+                "consumes": [
+                    "multipart/form-data"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "hotels"
+                ],
+                "summary": "Upload Hotel Images",
+                "parameters": [
+                    {
+                        "type": "array",
+                        "items": {
+                            "type": "file"
+                        },
+                        "collectionFormat": "csv",
+                        "description": "Image file. Repeat this field to upload multiple files (e.g. -F \\",
+                        "name": "images",
+                        "in": "formData",
+                        "required": true
+                    }
+                ],
+                "responses": {
+                    "201": {
+                        "description": "Created",
+                        "schema": {
+                            "$ref": "#/definitions/httpserver.APISuccessResponse"
+                        }
+                    },
+                    "400": {
+                        "description": "Bad Request",
+                        "schema": {
+                            "$ref": "#/definitions/httpserver.APIErrorResponse"
+                        }
+                    },
+                    "500": {
+                        "description": "Internal Server Error",
+                        "schema": {
+                            "$ref": "#/definitions/httpserver.APIErrorResponse"
+                        }
+                    },
+                    "501": {
+                        "description": "Not Implemented",
+                        "schema": {
+                            "$ref": "#/definitions/httpserver.APIErrorResponse"
+                        }
+                    }
+                }
+            }
+        },
         "/api/hotels/{hotel_id}": {
             "get": {
                 "description": "Get hotel detail by id",

@@ -157,7 +157,27 @@ AUTH_RESET_PASSWORD_URL=http://localhost:3000/reset-password
 AUTH_RESEND_API_KEY=re_xxxxxxxxx
 AUTH_RESEND_FROM_EMAIL=onboarding@resend.dev
 AUTH_RESEND_FROM_NAME=Hexagon Hotel
+
+# S3 (AWS)
+# S3_REGION=ap-southeast-1
+# S3_BUCKET=your-bucket-name
+# S3_ENDPOINT=
+# S3_ACCESS_KEY_ID=
+# S3_SECRET_ACCESS_KEY=
+
+# S3 (LocalStack)
+S3_REGION=us-east-1
+S3_BUCKET=hotel-images
+S3_BASE_URL=
+S3_PREFIX=
+S3_ENDPOINT=http://localhost:4566
+S3_ACCESS_KEY_ID=test
+S3_SECRET_ACCESS_KEY=test
+S3_SESSION_TOKEN=
 ```
+
+Notes:
+- If `S3_ENDPOINT` is set and `S3_BASE_URL` is empty, upload URLs are returned as `<S3_ENDPOINT>/<S3_BUCKET>/<object-key>` (works for LocalStack).
 
 ### Configuration Loading
 

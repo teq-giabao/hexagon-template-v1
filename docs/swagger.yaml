@@ -554,6 +554,45 @@ paths:
       summary: Get Hotel By ID
       tags:
       - hotels
+  /api/hotels/upload-images:
+    post:
+      consumes:
+      - multipart/form-data
+      description: Upload images to S3 using multipart/form-data field `images`. To
+        upload multiple files, send repeated `images` fields. Swagger 2 UI can only
+        pick one file at a time for this endpoint.
+      parameters:
+      - collectionFormat: csv
+        description: Image file. Repeat this field to upload multiple files (e.g.
+          -F \
+        in: formData
+        items:
+          type: file
+        name: images
+        required: true
+        type: array
+      produces:
+      - application/json
+      responses:
+        "201":
+          description: Created
+          schema:
+            $ref: '#/definitions/httpserver.APISuccessResponse'
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/httpserver.APIErrorResponse'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/httpserver.APIErrorResponse'
+        "501":
+          description: Not Implemented
+          schema:
+            $ref: '#/definitions/httpserver.APIErrorResponse'
+      summary: Upload Hotel Images
+      tags:
+      - hotels
   /api/users:
     get:
       description: Get all users
