@@ -1,7 +1,9 @@
 package httpserver
 
 import (
+	"encoding/json"
 	"hexagon/hotel"
+	"hexagon/room"
 	"hexagon/user"
 	"net/http"
 	"strconv"
@@ -189,4 +191,115 @@ func toHotelResponses(hotels []hotel.Hotel) []HotelResponse {
 		resp[i] = toHotelResponse(hotels[i])
 	}
 	return resp
+}
+
+type RoomResponse struct {
+	ID           string                `json:"id"`
+	HotelID      string                `json:"hotelId"`
+	Name         string                `json:"name"`
+	Description  string                `json:"description"`
+	BasePrice    float64               `json:"basePrice"`
+	MaxAdult     int                   `json:"maxAdult"`
+	MaxChild     int                   `json:"maxChild"`
+	MaxOccupancy int                   `json:"maxOccupancy"`
+	BedOptions   any                   `json:"bedOptions"`
+	SizeSqm      int                   `json:"sizeSqm"`
+	Status       string                `json:"status"`
+	Images       []RoomImageResponse   `json:"images"`
+	Amenities    []RoomAmenityResponse `json:"amenities"`
+	CreatedAt    time.Time             `json:"createdAt"`
+	UpdatedAt    time.Time             `json:"updatedAt"`
+}
+
+type RoomImageResponse struct {
+	ID      string `json:"id"`
+	RoomID  string `json:"roomId"`
+	URL     string `json:"url"`
+	IsCover bool   `json:"isCover"`
+}
+
+type RoomAmenityResponse struct {
+	ID          string    `json:"id"`
+	Code        string    `json:"code"`
+	Name        string    `json:"name"`
+	Description string    `json:"description"`
+	Icon        string    `json:"icon"`
+	CreatedAt   time.Time `json:"createdAt"`
+	UpdatedAt   time.Time `json:"updatedAt"`
+}
+
+type RoomInventoryResponse struct {
+	ID              string    `json:"id"`
+	RoomID          string    `json:"roomId"`
+	Date            time.Time `json:"date"`
+	TotalInventory  int       `json:"totalInventory"`
+	HeldInventory   int       `json:"heldInventory"`
+	BookedInventory int       `json:"bookedInventory"`
+}
+
+func toRoomResponse(r room.Room) RoomResponse {
+	images := make([]RoomImageResponse, len(r.Images))
+	for i := range r.Images {
+		images[i] = RoomImageResponse{
+			ID:      r.Images[i].ID,
+			RoomID:  r.Images[i].RoomID,
+			URL:     r.Images[i].URL,
+			IsCover: r.Images[i].IsCover,
+		}
+	}
+	amenities := make([]RoomAmenityResponse, len(r.Amenities))
+	for i := range r.Amenities {
+		amenities[i] = toRoomAmenityResponse(r.Amenities[i])
+	}
+	return RoomResponse{
+		ID:           r.ID,
+		HotelID:      r.HotelID,
+		Name:         r.Name,
+		Description:  r.Description,
+		BasePrice:    r.BasePrice,
+		MaxAdult:     r.MaxAdult,
+		MaxChild:     r.MaxChild,
+		MaxOccupancy: r.MaxOccupancy,
+		BedOptions:   jsonValueOrEmptyArray(r.BedOptions),
+		SizeSqm:      r.SizeSqm,
+		Status:       string(r.Status),
+		Images:       images,
+		Amenities:    amenities,
+		CreatedAt:    r.CreatedAt,
+		UpdatedAt:    r.UpdatedAt,
+	}
+}
+
+func toRoomAmenityResponse(a room.RoomAmenity) RoomAmenityResponse {
+	return RoomAmenityResponse{
+		ID:          a.ID,
+		Code:        a.Code,
+		Name:        a.Name,
+		Description: a.Description,
+		Icon:        a.Icon,
+		CreatedAt:   a.CreatedAt,
+		UpdatedAt:   a.UpdatedAt,
+	}
+}
+
+func toRoomInventoryResponse(i room.RoomInventory) RoomInventoryResponse {
+	return RoomInventoryResponse{
+		ID:              i.ID,
+		RoomID:          i.RoomID,
+		Date:            i.Date,
+		TotalInventory:  i.TotalInventory,
+		HeldInventory:   i.HeldInventory,
+		BookedInventory: i.BookedInventory,
+	}
+}
+
+func jsonValueOrEmptyArray(raw json.RawMessage) any {
+	if len(raw) == 0 {
+		return []any{}
+	}
+	var decoded any
+	if err := json.Unmarshal(raw, &decoded); err != nil {
+		return []any{}
+	}
+	return decoded
 }
