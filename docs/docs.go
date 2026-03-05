@@ -602,6 +602,181 @@ const docTemplate = `{
                 }
             }
         },
+        "/api/room-amenities": {
+            "post": {
+                "description": "Create a room amenity in master list.",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "rooms"
+                ],
+                "summary": "Create Room Amenity",
+                "parameters": [
+                    {
+                        "description": "Room amenity payload",
+                        "name": "payload",
+                        "in": "body",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/definitions/httpserver.AddRoomAmenityRequest"
+                        }
+                    }
+                ],
+                "responses": {
+                    "201": {
+                        "description": "Created",
+                        "schema": {
+                            "$ref": "#/definitions/httpserver.APISuccessResponse"
+                        }
+                    },
+                    "400": {
+                        "description": "Bad Request",
+                        "schema": {
+                            "$ref": "#/definitions/httpserver.APIErrorResponse"
+                        }
+                    },
+                    "409": {
+                        "description": "Conflict",
+                        "schema": {
+                            "$ref": "#/definitions/httpserver.APIErrorResponse"
+                        }
+                    },
+                    "500": {
+                        "description": "Internal Server Error",
+                        "schema": {
+                            "$ref": "#/definitions/httpserver.APIErrorResponse"
+                        }
+                    }
+                }
+            }
+        },
+        "/api/rooms": {
+            "post": {
+                "description": "Create a room type with images and optional amenityIds mapped in the same transaction.",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "rooms"
+                ],
+                "summary": "Create Room",
+                "parameters": [
+                    {
+                        "description": "Room payload",
+                        "name": "payload",
+                        "in": "body",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/definitions/httpserver.AddRoomRequest"
+                        }
+                    }
+                ],
+                "responses": {
+                    "201": {
+                        "description": "Created",
+                        "schema": {
+                            "$ref": "#/definitions/httpserver.APISuccessResponse"
+                        }
+                    },
+                    "400": {
+                        "description": "Bad Request",
+                        "schema": {
+                            "$ref": "#/definitions/httpserver.APIErrorResponse"
+                        }
+                    },
+                    "404": {
+                        "description": "Not Found",
+                        "schema": {
+                            "$ref": "#/definitions/httpserver.APIErrorResponse"
+                        }
+                    },
+                    "409": {
+                        "description": "Conflict",
+                        "schema": {
+                            "$ref": "#/definitions/httpserver.APIErrorResponse"
+                        }
+                    },
+                    "500": {
+                        "description": "Internal Server Error",
+                        "schema": {
+                            "$ref": "#/definitions/httpserver.APIErrorResponse"
+                        }
+                    }
+                }
+            }
+        },
+        "/api/rooms/{room_id}/inventories": {
+            "post": {
+                "description": "Create inventory for a room on a specific date.",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "rooms"
+                ],
+                "summary": "Create Room Inventory",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "Room ID",
+                        "name": "room_id",
+                        "in": "path",
+                        "required": true
+                    },
+                    {
+                        "description": "Room inventory payload",
+                        "name": "payload",
+                        "in": "body",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/definitions/httpserver.AddRoomInventoryRequest"
+                        }
+                    }
+                ],
+                "responses": {
+                    "201": {
+                        "description": "Created",
+                        "schema": {
+                            "$ref": "#/definitions/httpserver.APISuccessResponse"
+                        }
+                    },
+                    "400": {
+                        "description": "Bad Request",
+                        "schema": {
+                            "$ref": "#/definitions/httpserver.APIErrorResponse"
+                        }
+                    },
+                    "404": {
+                        "description": "Not Found",
+                        "schema": {
+                            "$ref": "#/definitions/httpserver.APIErrorResponse"
+                        }
+                    },
+                    "409": {
+                        "description": "Conflict",
+                        "schema": {
+                            "$ref": "#/definitions/httpserver.APIErrorResponse"
+                        }
+                    },
+                    "500": {
+                        "description": "Internal Server Error",
+                        "schema": {
+                            "$ref": "#/definitions/httpserver.APIErrorResponse"
+                        }
+                    }
+                }
+            }
+        },
         "/api/users": {
             "get": {
                 "description": "Get all users",
@@ -1028,6 +1203,57 @@ const docTemplate = `{
                     }
                 }
             }
+        },
+        "httpserver.AddRoomAmenityRequest": {
+            "type": "object",
+            "required": [
+                "code",
+                "name"
+            ],
+            "properties": {
+                "code": {
+                    "type": "string",
+                    "maxLength": 100
+                },
+                "description": {
+                    "type": "string",
+                    "maxLength": 2000
+                },
+                "icon": {
+                    "type": "string",
+                    "maxLength": 255
+                },
+                "name": {
+                    "type": "string",
+                    "maxLength": 255
+                }
+            }
+        },
+        "httpserver.AddRoomInventoryRequest": {
+            "type": "object",
+            "required": [
+                "date"
+            ],
+            "properties": {
+                "bookedInventory": {
+                    "type": "integer",
+                    "minimum": 0
+                },
+                "date": {
+                    "type": "string"
+                },
+                "heldInventory": {
+                    "type": "integer",
+                    "minimum": 0
+                },
+                "totalInventory": {
+                    "type": "integer",
+                    "minimum": 0
+                }
+            }
+        },
+        "httpserver.AddRoomRequest": {
+            "type": "object"
         },
         "httpserver.AddUserRequest": {
             "type": "object",

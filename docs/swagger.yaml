@@ -54,6 +54,42 @@ definitions:
     - city
     - name
     type: object
+  httpserver.AddRoomAmenityRequest:
+    properties:
+      code:
+        maxLength: 100
+        type: string
+      description:
+        maxLength: 2000
+        type: string
+      icon:
+        maxLength: 255
+        type: string
+      name:
+        maxLength: 255
+        type: string
+    required:
+    - code
+    - name
+    type: object
+  httpserver.AddRoomInventoryRequest:
+    properties:
+      bookedInventory:
+        minimum: 0
+        type: integer
+      date:
+        type: string
+      heldInventory:
+        minimum: 0
+        type: integer
+      totalInventory:
+        minimum: 0
+        type: integer
+    required:
+    - date
+    type: object
+  httpserver.AddRoomRequest:
+    type: object
   httpserver.AddUserRequest:
     properties:
       email:
@@ -593,6 +629,122 @@ paths:
       summary: Upload Hotel Images
       tags:
       - hotels
+  /api/room-amenities:
+    post:
+      consumes:
+      - application/json
+      description: Create a room amenity in master list.
+      parameters:
+      - description: Room amenity payload
+        in: body
+        name: payload
+        required: true
+        schema:
+          $ref: '#/definitions/httpserver.AddRoomAmenityRequest'
+      produces:
+      - application/json
+      responses:
+        "201":
+          description: Created
+          schema:
+            $ref: '#/definitions/httpserver.APISuccessResponse'
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/httpserver.APIErrorResponse'
+        "409":
+          description: Conflict
+          schema:
+            $ref: '#/definitions/httpserver.APIErrorResponse'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/httpserver.APIErrorResponse'
+      summary: Create Room Amenity
+      tags:
+      - rooms
+  /api/rooms:
+    post:
+      consumes:
+      - application/json
+      description: Create a room type with images and optional amenityIds mapped in
+        the same transaction.
+      parameters:
+      - description: Room payload
+        in: body
+        name: payload
+        required: true
+        schema:
+          $ref: '#/definitions/httpserver.AddRoomRequest'
+      produces:
+      - application/json
+      responses:
+        "201":
+          description: Created
+          schema:
+            $ref: '#/definitions/httpserver.APISuccessResponse'
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/httpserver.APIErrorResponse'
+        "404":
+          description: Not Found
+          schema:
+            $ref: '#/definitions/httpserver.APIErrorResponse'
+        "409":
+          description: Conflict
+          schema:
+            $ref: '#/definitions/httpserver.APIErrorResponse'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/httpserver.APIErrorResponse'
+      summary: Create Room
+      tags:
+      - rooms
+  /api/rooms/{room_id}/inventories:
+    post:
+      consumes:
+      - application/json
+      description: Create inventory for a room on a specific date.
+      parameters:
+      - description: Room ID
+        in: path
+        name: room_id
+        required: true
+        type: string
+      - description: Room inventory payload
+        in: body
+        name: payload
+        required: true
+        schema:
+          $ref: '#/definitions/httpserver.AddRoomInventoryRequest'
+      produces:
+      - application/json
+      responses:
+        "201":
+          description: Created
+          schema:
+            $ref: '#/definitions/httpserver.APISuccessResponse'
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/httpserver.APIErrorResponse'
+        "404":
+          description: Not Found
+          schema:
+            $ref: '#/definitions/httpserver.APIErrorResponse'
+        "409":
+          description: Conflict
+          schema:
+            $ref: '#/definitions/httpserver.APIErrorResponse'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/httpserver.APIErrorResponse'
+      summary: Create Room Inventory
+      tags:
+      - rooms
   /api/users:
     get:
       description: Get all users
