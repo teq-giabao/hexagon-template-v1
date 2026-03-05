@@ -122,23 +122,23 @@ func toHotelPaymentOptions(req []HotelPaymentOptionRequest) []hotel.HotelPayment
 }
 
 type RoomImageRequest struct {
-	URL     string `json:"url" validate:"required,notblank,max=1000"`
-	IsCover bool   `json:"isCover"`
+	URL     string `json:"url" validate:"required,notblank,max=1000" example:"https://cdn.example.com/rooms/deluxe-1.jpg"`
+	IsCover bool   `json:"isCover" example:"true"`
 }
 
 type AddRoomRequest struct {
-	HotelID      string             `json:"hotelId" validate:"required,notblank"`
-	Name         string             `json:"name" validate:"required,notblank,max=255"`
-	Description  string             `json:"description" validate:"omitempty,max=2000"`
-	BasePrice    float64            `json:"basePrice" validate:"required,gt=0"`
-	MaxAdult     int                `json:"maxAdult" validate:"required,gt=0"`
-	MaxChild     int                `json:"maxChild" validate:"gte=0"`
-	MaxOccupancy int                `json:"maxOccupancy" validate:"required,gt=0"`
-	BedOptions   json.RawMessage    `json:"bedOptions"`
-	SizeSqm      int                `json:"sizeSqm" validate:"gte=0"`
-	Status       room.RoomStatus    `json:"status" validate:"omitempty,oneof=active inactive"`
+	HotelID      string             `json:"hotelId" validate:"required,notblank" example:"6d3f8c67-f3f4-4e8f-8c89-c5ff3f2c1244"`
+	Name         string             `json:"name" validate:"required,notblank,max=255" example:"Deluxe Twin Room"`
+	Description  string             `json:"description" validate:"omitempty,max=2000" example:"Spacious room with city view and balcony"`
+	BasePrice    float64            `json:"basePrice" validate:"required,gt=0" example:"1200000"`
+	MaxAdult     int                `json:"maxAdult" validate:"required,gt=0" example:"2"`
+	MaxChild     int                `json:"maxChild" validate:"gte=0" example:"1"`
+	MaxOccupancy int                `json:"maxOccupancy" validate:"required,gt=0" example:"3"`
+	BedOptions   json.RawMessage    `json:"bedOptions" swaggertype:"string" example:"{\"beds\":[{\"type\":\"queen\",\"count\":2}]}"`
+	SizeSqm      int                `json:"sizeSqm" validate:"gte=0" example:"35"`
+	Status       room.RoomStatus    `json:"status" validate:"omitempty,oneof=active inactive" example:"active"`
 	Images       []RoomImageRequest `json:"images" validate:"required,min=1,dive"`
-	AmenityIDs   []string           `json:"amenityIds" validate:"omitempty,dive,required,notblank"`
+	AmenityIDs   []string           `json:"amenityIds" validate:"omitempty,dive,required,notblank" example:"550e8400-e29b-41d4-a716-446655440000,660e8400-e29b-41d4-a716-446655440001"`
 }
 
 func (r AddRoomRequest) ToRoom() room.Room {

@@ -1253,7 +1253,87 @@ const docTemplate = `{
             }
         },
         "httpserver.AddRoomRequest": {
-            "type": "object"
+            "type": "object",
+            "required": [
+                "amenityIds",
+                "basePrice",
+                "hotelId",
+                "images",
+                "maxAdult",
+                "maxOccupancy",
+                "name"
+            ],
+            "properties": {
+                "amenityIds": {
+                    "type": "array",
+                    "items": {
+                        "type": "string"
+                    },
+                    "example": [
+                        "550e8400-e29b-41d4-a716-446655440000",
+                        "660e8400-e29b-41d4-a716-446655440001"
+                    ]
+                },
+                "basePrice": {
+                    "type": "number",
+                    "example": 1200000
+                },
+                "bedOptions": {
+                    "type": "string",
+                    "example": "{\"beds\":[{\"type\":\"queen\",\"count\":2}]}"
+                },
+                "description": {
+                    "type": "string",
+                    "maxLength": 2000,
+                    "example": "Spacious room with city view and balcony"
+                },
+                "hotelId": {
+                    "type": "string",
+                    "example": "6d3f8c67-f3f4-4e8f-8c89-c5ff3f2c1244"
+                },
+                "images": {
+                    "type": "array",
+                    "minItems": 1,
+                    "items": {
+                        "$ref": "#/definitions/httpserver.RoomImageRequest"
+                    }
+                },
+                "maxAdult": {
+                    "type": "integer",
+                    "example": 2
+                },
+                "maxChild": {
+                    "type": "integer",
+                    "minimum": 0,
+                    "example": 1
+                },
+                "maxOccupancy": {
+                    "type": "integer",
+                    "example": 3
+                },
+                "name": {
+                    "type": "string",
+                    "maxLength": 255,
+                    "example": "Deluxe Twin Room"
+                },
+                "sizeSqm": {
+                    "type": "integer",
+                    "minimum": 0,
+                    "example": 35
+                },
+                "status": {
+                    "enum": [
+                        "active",
+                        "inactive"
+                    ],
+                    "allOf": [
+                        {
+                            "$ref": "#/definitions/room.RoomStatus"
+                        }
+                    ],
+                    "example": "active"
+                }
+            }
         },
         "httpserver.AddUserRequest": {
             "type": "object",
@@ -1421,6 +1501,23 @@ const docTemplate = `{
                 }
             }
         },
+        "httpserver.RoomImageRequest": {
+            "type": "object",
+            "required": [
+                "url"
+            ],
+            "properties": {
+                "isCover": {
+                    "type": "boolean",
+                    "example": true
+                },
+                "url": {
+                    "type": "string",
+                    "maxLength": 1000,
+                    "example": "https://cdn.example.com/rooms/deluxe-1.jpg"
+                }
+            }
+        },
         "httpserver.UpdateProfileRequest": {
             "type": "object",
             "required": [
@@ -1465,6 +1562,17 @@ const docTemplate = `{
                     "type": "string"
                 }
             }
+        },
+        "room.RoomStatus": {
+            "type": "string",
+            "enum": [
+                "active",
+                "inactive"
+            ],
+            "x-enum-varnames": [
+                "RoomStatusActive",
+                "RoomStatusInactive"
+            ]
         }
     },
     "securityDefinitions": {
