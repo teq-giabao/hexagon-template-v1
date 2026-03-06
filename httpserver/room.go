@@ -99,7 +99,7 @@ func (s *Server) handleAddRoomInventory(c echo.Context) error {
 		return respondError(c, http.StatusBadRequest, "invalid request body", err.Error())
 	}
 
-	date, err := time.Parse("2006-01-02", req.Date)
+	date, err := parseISODate(req.Date)
 	if err != nil {
 		return respondError(c, http.StatusBadRequest, "invalid request body", "date must be in YYYY-MM-DD format")
 	}

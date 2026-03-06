@@ -4,6 +4,7 @@ import (
 	"encoding/json"
 	"hexagon/hotel"
 	"hexagon/room"
+	"hexagon/search"
 	"hexagon/user"
 	"time"
 )
@@ -190,4 +191,30 @@ type AddRoomInventoryRequest struct {
 	TotalInventory  int    `json:"totalInventory" validate:"gte=0"`
 	HeldInventory   int    `json:"heldInventory" validate:"gte=0"`
 	BookedInventory int    `json:"bookedInventory" validate:"gte=0"`
+}
+
+type SearchHotelsRequest struct {
+	Query          string   `json:"query" validate:"required,notblank" example:"ha noi"`
+	CheckInAt      string   `json:"checkInAt" validate:"required,notblank,datetime=2006-01-02,date_not_past,date_within_booking_window" example:"2026-04-01"`
+	CheckOutAt     string   `json:"checkOutAt" validate:"required,notblank,datetime=2006-01-02,date_within_booking_window,checkout_after_checkin" example:"2026-04-03"`
+	RoomCount      int      `json:"roomCount" validate:"required,gt=0" example:"2"`
+	AdultCount     int      `json:"adultCount" validate:"required,gt=0" example:"3"`
+	ChildrenAges   []int    `json:"childrenAges" validate:"omitempty,dive,gte=0,lte=17" example:"5"`
+	RatingMin      float64  `json:"ratingMin" validate:"gte=0,lte=5" example:"4"`
+	AmenityIDs     []string `json:"amenityIds" validate:"omitempty,dive,required,notblank"`
+	PaymentOptions []string `json:"paymentOptions" validate:"omitempty,dive,oneof=immediate pay_at_hotel deferred" example:"immediate,pay_at_hotel"`
+}
+
+func (r SearchHotelsRequest) ToCriteria(checkInAt, checkOutAt time.Time) search.Criteria {
+	return search.Criteria{
+		Query:          r.Query,
+		CheckInDate:    checkInAt,
+		CheckOutDate:   checkOutAt,
+		Adults:         r.AdultCount,
+		ChildrenAges:   r.ChildrenAges,
+		RoomCount:      r.RoomCount,
+		RatingMin:      r.RatingMin,
+		AmenityIDs:     r.AmenityIDs,
+		PaymentOptions: r.PaymentOptions,
+	}
 }
