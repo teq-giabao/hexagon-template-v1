@@ -25,6 +25,7 @@ import (
 	s3storage "hexagon/pkg/storage/s3"
 	"hexagon/postgres"
 	"hexagon/room"
+	"hexagon/search"
 	"hexagon/upload"
 	"hexagon/user"
 	"log/slog"
@@ -74,6 +75,7 @@ func main() {
 	userRepo := postgres.NewUserRepository(db)
 	hotelRepo := postgres.NewHotelRepository(db)
 	roomRepo := postgres.NewRoomRepository(db)
+	searchRepo := postgres.NewSearchRepository(db)
 	refreshTokenRepo := postgres.NewRefreshTokenRepository(db)
 	userService := user.NewUsecaseWithSession(
 		userRepo,
@@ -82,6 +84,7 @@ func main() {
 	)
 	hotelService := hotel.NewUsecase(hotelRepo)
 	roomService := room.NewUsecase(roomRepo)
+	searchService := search.NewUsecase(searchRepo)
 	googleProvider, err := oauthgoogle.NewProvider(
 		cfg.Auth.GoogleClientID,
 		cfg.Auth.GoogleClientSecret,
@@ -112,6 +115,7 @@ func main() {
 	server.AuthService = authService
 	server.HotelService = hotelService
 	server.RoomService = roomService
+	server.SearchService = searchService
 	server.UploadService = createUploadService(cfg)
 	server.Addr = fmt.Sprintf(":%d", cfg.Port)
 

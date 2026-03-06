@@ -4,6 +4,7 @@ import (
 	"encoding/json"
 	"hexagon/hotel"
 	"hexagon/room"
+	"hexagon/search"
 	"hexagon/user"
 	"net/http"
 	"strconv"
@@ -302,4 +303,40 @@ func jsonValueOrEmptyArray(raw json.RawMessage) any {
 		return []any{}
 	}
 	return decoded
+}
+
+type SearchHotelsResponse struct {
+	Hotels []SearchHotelItemResponse `json:"hotels"`
+}
+
+type SearchHotelItemResponse struct {
+	HotelID            string   `json:"hotelId"`
+	Name               string   `json:"name"`
+	City               string   `json:"city"`
+	Address            string   `json:"address"`
+	Rating             float64  `json:"rating"`
+	PaymentOptions     []string `json:"paymentOptions"`
+	MinPrice           float64  `json:"minPrice"`
+	AvailableRoomCount int      `json:"availableRoomCount"`
+	MatchesRequested   bool     `json:"matchesRequested"`
+	FlexibleMatch      bool     `json:"flexibleMatch"`
+}
+
+func toSearchHotelsResponse(in []search.HotelSearchResult) SearchHotelsResponse {
+	hotels := make([]SearchHotelItemResponse, len(in))
+	for i := range in {
+		hotels[i] = SearchHotelItemResponse{
+			HotelID:            in[i].HotelID,
+			Name:               in[i].Name,
+			City:               in[i].City,
+			Address:            in[i].Address,
+			Rating:             in[i].Rating,
+			PaymentOptions:     in[i].PaymentOptions,
+			MinPrice:           in[i].MinPrice,
+			AvailableRoomCount: in[i].AvailableRoomCount,
+			MatchesRequested:   in[i].MatchesRequested,
+			FlexibleMatch:      in[i].FlexibleMatch,
+		}
+	}
+	return SearchHotelsResponse{Hotels: hotels}
 }

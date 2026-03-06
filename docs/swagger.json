@@ -771,6 +771,52 @@
                 }
             }
         },
+        "/api/search/hotels": {
+            "post": {
+                "description": "Search hotels by name/location, date range, occupancy, and filters. Returns hotels that can satisfy requested room count.",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "search"
+                ],
+                "summary": "Search Hotels",
+                "parameters": [
+                    {
+                        "description": "Hotel search criteria",
+                        "name": "payload",
+                        "in": "body",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/definitions/httpserver.SearchHotelsRequest"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "$ref": "#/definitions/httpserver.APISuccessResponse"
+                        }
+                    },
+                    "400": {
+                        "description": "Bad Request",
+                        "schema": {
+                            "$ref": "#/definitions/httpserver.APIErrorResponse"
+                        }
+                    },
+                    "500": {
+                        "description": "Internal Server Error",
+                        "schema": {
+                            "$ref": "#/definitions/httpserver.APIErrorResponse"
+                        }
+                    }
+                }
+            }
+        },
         "/api/users": {
             "get": {
                 "description": "Get all users",
@@ -1509,6 +1555,70 @@
                     "type": "string",
                     "maxLength": 1000,
                     "example": "https://cdn.example.com/rooms/deluxe-1.jpg"
+                }
+            }
+        },
+        "httpserver.SearchHotelsRequest": {
+            "type": "object",
+            "required": [
+                "adultCount",
+                "amenityIds",
+                "checkInAt",
+                "checkOutAt",
+                "query",
+                "roomCount"
+            ],
+            "properties": {
+                "adultCount": {
+                    "type": "integer",
+                    "example": 3
+                },
+                "amenityIds": {
+                    "type": "array",
+                    "items": {
+                        "type": "string"
+                    }
+                },
+                "checkInAt": {
+                    "type": "string",
+                    "example": "2026-04-01"
+                },
+                "checkOutAt": {
+                    "type": "string",
+                    "example": "2026-04-03"
+                },
+                "childrenAges": {
+                    "type": "array",
+                    "items": {
+                        "type": "integer"
+                    },
+                    "example": [
+                        5
+                    ]
+                },
+                "paymentOptions": {
+                    "type": "array",
+                    "items": {
+                        "type": "string"
+                    },
+                    "example": [
+                        "immediate",
+                        "pay_at_hotel"
+                    ]
+                },
+                "query": {
+                    "type": "string",
+                    "example": "ha noi"
+                },
+                "ratingMin": {
+                    "type": "number",
+                    "maximum": 5,
+                    "minimum": 0,
+                    "example": 4
+                },
+                "roomCount": {
+                    "type": "integer",
+                    "example": 2
                 }
             }
         },
