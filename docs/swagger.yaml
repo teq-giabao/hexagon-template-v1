@@ -275,6 +275,53 @@ definitions:
     required:
     - url
     type: object
+  httpserver.SearchHotelsRequest:
+    properties:
+      adultCount:
+        example: 3
+        type: integer
+      amenityIds:
+        items:
+          type: string
+        type: array
+      checkInAt:
+        example: "2026-04-01"
+        type: string
+      checkOutAt:
+        example: "2026-04-03"
+        type: string
+      childrenAges:
+        example:
+        - 5
+        items:
+          type: integer
+        type: array
+      paymentOptions:
+        example:
+        - immediate
+        - pay_at_hotel
+        items:
+          type: string
+        type: array
+      query:
+        example: ha noi
+        type: string
+      ratingMin:
+        example: 4
+        maximum: 5
+        minimum: 0
+        type: number
+      roomCount:
+        example: 2
+        type: integer
+    required:
+    - adultCount
+    - amenityIds
+    - checkInAt
+    - checkOutAt
+    - query
+    - roomCount
+    type: object
   httpserver.UpdateProfileRequest:
     properties:
       name:
@@ -824,6 +871,37 @@ paths:
       summary: Create Room Inventory
       tags:
       - rooms
+  /api/search/hotels:
+    post:
+      consumes:
+      - application/json
+      description: Search hotels by name/location, date range, occupancy, and filters.
+        Returns hotels that can satisfy requested room count.
+      parameters:
+      - description: Hotel search criteria
+        in: body
+        name: payload
+        required: true
+        schema:
+          $ref: '#/definitions/httpserver.SearchHotelsRequest'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/httpserver.APISuccessResponse'
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/httpserver.APIErrorResponse'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/httpserver.APIErrorResponse'
+      summary: Search Hotels
+      tags:
+      - search
   /api/users:
     get:
       description: Get all users
