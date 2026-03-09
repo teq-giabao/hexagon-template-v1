@@ -1,10 +1,11 @@
 package httpserver_test
 
 import (
-	"hexagon/httpserver"
 	"net/http"
 	"net/http/httptest"
 	"testing"
+
+	"hexagon/httpserver"
 
 	"github.com/stretchr/testify/assert"
 )

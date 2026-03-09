@@ -3,8 +3,9 @@ package postgres
 import (
 	"context"
 	"errors"
-	"hexagon/hotel"
 	"time"
+
+	"hexagon/hotel"
 
 	"gorm.io/gorm"
 )
@@ -74,6 +75,7 @@ func (r *HotelRepository) List(ctx context.Context) ([]hotel.Hotel, error) {
 	for i := range models {
 		hotels[i] = toDomainHotel(models[i])
 	}
+
 	return hotels, nil
 }
 
@@ -87,13 +89,16 @@ func (r *HotelRepository) GetByID(ctx context.Context, id string) (hotel.Hotel, 
 		if errors.Is(err, gorm.ErrRecordNotFound) {
 			return hotel.Hotel{}, hotel.ErrHotelNotFound
 		}
+
 		return hotel.Hotel{}, err
 	}
+
 	return toDomainHotel(model), nil
 }
 
 func (r *HotelRepository) Create(ctx context.Context, h hotel.Hotel) (hotel.Hotel, error) {
 	var created HotelModel
+
 	err := r.db.WithContext(ctx).Transaction(func(tx *gorm.DB) error {
 		model := HotelModel{
 			Name:               h.Name,
@@ -119,6 +124,7 @@ func (r *HotelRepository) Create(ctx context.Context, h hotel.Hotel) (hotel.Hote
 					IsCover: h.Images[i].IsCover,
 				}
 			}
+
 			if err := tx.Create(&images).Error; err != nil {
 				return err
 			}
@@ -134,17 +140,20 @@ func (r *HotelRepository) Create(ctx context.Context, h hotel.Hotel) (hotel.Hote
 					Enabled:       h.PaymentOptions[i].Enabled,
 				}
 			}
+
 			if err := tx.Create(&options).Error; err != nil {
 				return err
 			}
 		}
 
 		created = model
+
 		return nil
 	})
 	if err != nil {
 		return hotel.Hotel{}, err
 	}
+
 	return r.GetByID(ctx, created.ID)
 }
 
@@ -197,5 +206,6 @@ func parseClock(value string) (time.Time, error) {
 	if t, err := time.Parse("15:04:05", value); err == nil {
 		return t, nil
 	}
+
 	return time.Parse("15:04", value)
 }

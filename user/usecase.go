@@ -51,6 +51,7 @@ func NewUsecase(r Repository, h PasswordHasher) *Usecase {
 func NewUsecaseWithSession(r Repository, h PasswordHasher, sessionRepo SessionRepository) *Usecase {
 	uc := NewUsecase(r, h)
 	uc.sessionRepo = sessionRepo
+
 	return uc
 }
 
@@ -58,18 +59,23 @@ func (uc *Usecase) AddUser(ctx context.Context, u User) error {
 	if u.Role == "" {
 		u.Role = UserRoleUser
 	}
+
 	if u.Status == "" {
 		u.Status = UserStatusActive
 	}
+
 	if err := u.Validate(); err != nil {
 		return err
 	}
+
 	hashed, err := uc.hasher.Hash(u.Password)
 	if err != nil {
 		return err
 	}
+
 	u.Password = ""
 	u.PasswordHash = hashed
+
 	return uc.r.CreateUser(ctx, u)
 }
 
@@ -81,6 +87,7 @@ func (uc *Usecase) GetUserByID(ctx context.Context, id string) (User, error) {
 	if strings.TrimSpace(id) == "" {
 		return User{}, ErrUserIDRequired
 	}
+
 	return uc.r.GetByID(ctx, id)
 }
 
@@ -89,18 +96,22 @@ func (uc *Usecase) GetUserByEmail(ctx context.Context, email string) (User, erro
 	if err := validateEmail(email); err != nil {
 		return User{}, err
 	}
+
 	return uc.r.GetByEmail(ctx, email)
 }
 
 func (uc *Usecase) UpdateProfile(ctx context.Context, id, name, phone string) (User, error) {
 	id = strings.TrimSpace(id)
 	name = strings.TrimSpace(name)
+
 	if id == "" {
 		return User{}, ErrUserIDRequired
 	}
+
 	if err := validateName(name); err != nil {
 		return User{}, err
 	}
+
 	return uc.r.UpdateProfile(ctx, id, name, strings.TrimSpace(phone))
 }
 
@@ -109,10 +120,12 @@ func (uc *Usecase) ChangePassword(ctx context.Context, id, currentPassword, newP
 	if id == "" {
 		return ErrUserIDRequired
 	}
+
 	currentPassword = strings.TrimSpace(currentPassword)
 	if currentPassword == "" {
 		return ErrCurrentPasswordInvalid
 	}
+
 	newPassword = strings.TrimSpace(newPassword)
 	if err := validatePassword(newPassword); err != nil {
 		return err
@@ -122,6 +135,7 @@ func (uc *Usecase) ChangePassword(ctx context.Context, id, currentPassword, newP
 	if err != nil {
 		return err
 	}
+
 	if err := uc.hasher.Compare(existing.PasswordHash, currentPassword); err != nil {
 		return ErrCurrentPasswordInvalid
 	}
@@ -130,14 +144,17 @@ func (uc *Usecase) ChangePassword(ctx context.Context, id, currentPassword, newP
 	if err != nil {
 		return err
 	}
+
 	if err := uc.r.UpdatePasswordHash(ctx, id, hashed); err != nil {
 		return err
 	}
+
 	if uc.sessionRepo != nil {
 		if err := uc.sessionRepo.RevokeAllByUserID(ctx, id, time.Now().UTC()); err != nil {
 			return err
 		}
 	}
+
 	return nil
 }
 
@@ -145,5 +162,6 @@ func (uc *Usecase) DeactivateUser(ctx context.Context, id string) error {
 	if strings.TrimSpace(id) == "" {
 		return ErrUserIDRequired
 	}
+
 	return uc.r.UpdateStatus(ctx, id, UserStatusInactive)
 }

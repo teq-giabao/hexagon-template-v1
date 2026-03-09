@@ -13,6 +13,10 @@ package main
 import (
 	"context"
 	"fmt"
+	"log/slog"
+	"os"
+	"time"
+
 	"hexagon/auth"
 	"hexagon/hotel"
 	"hexagon/httpserver"
@@ -28,9 +32,6 @@ import (
 	"hexagon/search"
 	"hexagon/upload"
 	"hexagon/user"
-	"log/slog"
-	"os"
-	"time"
 
 	_ "hexagon/docs"
 
@@ -57,6 +58,7 @@ func main() {
 		slog.Error("Cannot init sentry", "error", err)
 		os.Exit(1)
 	}
+
 	defer sentrygo.Flush(sentry.FlushTime)
 
 	db, err := postgres.NewConnection(postgres.Options{
@@ -85,6 +87,7 @@ func main() {
 	hotelService := hotel.NewUsecase(hotelRepo)
 	roomService := room.NewUsecase(roomRepo)
 	searchService := search.NewUsecase(searchRepo)
+
 	googleProvider, err := oauthgoogle.NewProvider(
 		cfg.Auth.GoogleClientID,
 		cfg.Auth.GoogleClientSecret,
@@ -94,6 +97,7 @@ func main() {
 		slog.Error("Cannot init google oauth provider", "error", err)
 		os.Exit(1)
 	}
+
 	authService := auth.NewUsecase(
 		userRepo,
 		postgres.NewOAuthProviderAccountRepository(db),
@@ -120,6 +124,7 @@ func main() {
 	server.Addr = fmt.Sprintf(":%d", cfg.Port)
 
 	slog.Info("server started!")
+
 	if err := server.Start(); err != nil {
 		slog.Error("server stopped with error", "error", err)
 		os.Exit(1)
@@ -150,6 +155,7 @@ func createImageUploader(cfg *config.Config) upload.Uploader {
 		slog.Error("cannot initialize s3 uploader", "error", err)
 		return nil
 	}
+
 	return uploader
 }
 
@@ -157,6 +163,7 @@ func createResetMailer(cfg *config.Config) auth.PasswordResetMailer {
 	if cfg == nil {
 		return nil
 	}
+
 	mailer, err := resendmailer.NewProvider(
 		cfg.Auth.ResendAPIKey,
 		cfg.Auth.ResendFromEmail,
@@ -166,5 +173,6 @@ func createResetMailer(cfg *config.Config) auth.PasswordResetMailer {
 		slog.Warn("password reset mailer is not configured", "error", err)
 		return nil
 	}
+
 	return mailer
 }

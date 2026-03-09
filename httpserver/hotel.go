@@ -26,6 +26,7 @@ func (s *Server) handleListHotels(c echo.Context) error {
 	if err != nil {
 		return err
 	}
+
 	return respondOK(c, APIDataResult{Data: toHotelResponses(hotels)})
 }
 
@@ -44,6 +45,7 @@ func (s *Server) handleGetHotelByID(c echo.Context) error {
 	if err != nil {
 		return err
 	}
+
 	return respondOK(c, toHotelResponse(h))
 }
 
@@ -62,6 +64,7 @@ func (s *Server) handleAddHotel(c echo.Context) error {
 	if err := c.Bind(&req); err != nil {
 		return respondError(c, http.StatusBadRequest, "invalid request body", err.Error())
 	}
+
 	if err := c.Validate(&req); err != nil {
 		return respondError(c, http.StatusBadRequest, "invalid request body", err.Error())
 	}
@@ -75,6 +78,7 @@ func (s *Server) handleAddHotel(c echo.Context) error {
 	if err != nil {
 		return err
 	}
+
 	return respondCreated(c, toHotelResponse(created))
 }
 
@@ -99,10 +103,12 @@ func parseHotelTimes(checkIn, checkOut string) (time.Time, time.Time, error) {
 	if err != nil {
 		return time.Time{}, time.Time{}, err
 	}
+
 	checkOutTime, err := parseClockTime(checkOut)
 	if err != nil {
 		return time.Time{}, time.Time{}, err
 	}
+
 	return checkInTime, checkOutTime, nil
 }
 
@@ -110,5 +116,6 @@ func parseClockTime(value string) (time.Time, error) {
 	if t, err := time.Parse("15:04:05", value); err == nil {
 		return t, nil
 	}
+
 	return time.Parse("15:04", value)
 }

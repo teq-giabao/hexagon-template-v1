@@ -14,9 +14,7 @@ import (
 	"github.com/aws/aws-sdk-go-v2/service/s3"
 )
 
-var (
-	ErrMissingBucket = errors.New("s3: bucket is required")
-)
+var ErrMissingBucket = errors.New("s3: bucket is required")
 
 type Config struct {
 	Region          string
@@ -76,6 +74,7 @@ func NewUploader(ctx context.Context, cfg Config) (*Uploader, error) {
 			if region == "" {
 				region = awsCfg.Region
 			}
+
 			baseURL = fmt.Sprintf("https://%s.s3.%s.amazonaws.com", cfg.Bucket, region)
 		}
 	}

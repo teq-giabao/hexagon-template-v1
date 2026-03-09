@@ -4,11 +4,12 @@ import (
 	"bytes"
 	"context"
 	"encoding/json"
-	"hexagon/httpserver"
-	"hexagon/user"
 	"net/http"
 	"net/http/httptest"
 	"testing"
+
+	"hexagon/httpserver"
+	"hexagon/user"
 
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/mock"
@@ -130,6 +131,7 @@ func TestUserRoutes_UpdateProfile(t *testing.T) {
 
 	req := httptest.NewRequest(http.MethodPatch, "/api/users/u-1/profile", bytes.NewReader(body))
 	req.Header.Set("Content-Type", "application/json")
+
 	rec := httptest.NewRecorder()
 	server.Router.ServeHTTP(rec, req)
 
@@ -156,6 +158,7 @@ func TestUserRoutes_ChangePassword(t *testing.T) {
 
 	req := httptest.NewRequest(http.MethodPatch, "/api/users/u-1/password", bytes.NewReader(body))
 	req.Header.Set("Content-Type", "application/json")
+
 	rec := httptest.NewRecorder()
 	server.Router.ServeHTTP(rec, req)
 

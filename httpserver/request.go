@@ -2,11 +2,12 @@ package httpserver
 
 import (
 	"encoding/json"
+	"time"
+
 	"hexagon/hotel"
 	"hexagon/room"
 	"hexagon/search"
 	"hexagon/user"
-	"time"
 )
 
 type AddUserRequest struct {
@@ -108,6 +109,7 @@ func toHotelImages(req []HotelImageRequest) []hotel.HotelImage {
 			IsCover: req[i].IsCover,
 		}
 	}
+
 	return result
 }
 
@@ -119,6 +121,7 @@ func toHotelPaymentOptions(req []HotelPaymentOptionRequest) []hotel.HotelPayment
 			Enabled:       req[i].Enabled,
 		}
 	}
+
 	return result
 }
 
@@ -167,6 +170,7 @@ func toRoomImages(req []RoomImageRequest) []room.RoomImage {
 			IsCover: req[i].IsCover,
 		}
 	}
+
 	return result
 }
 

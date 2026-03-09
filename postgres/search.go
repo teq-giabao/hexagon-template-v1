@@ -2,10 +2,11 @@ package postgres
 
 import (
 	"context"
-	"hexagon/search"
 	"sort"
 	"strings"
 	"time"
+
+	"hexagon/search"
 
 	"gorm.io/gorm"
 )
@@ -25,14 +26,17 @@ func (r *SearchRepository) SearchHotels(ctx context.Context, criteria search.Cri
 	}
 
 	results := make([]search.HotelSearchResult, 0, len(hotels))
+
 	for i := range hotels {
 		strict, flexible, minPrice, availableRoomTypes, err := r.evaluateHotelAvailability(ctx, hotels[i], criteria)
 		if err != nil {
 			return nil, err
 		}
+
 		if !strict && !flexible {
 			continue
 		}
+
 		results = append(results, search.HotelSearchResult{
 			HotelID:            hotels[i].ID,
 			Name:               hotels[i].Name,
@@ -51,8 +55,10 @@ func (r *SearchRepository) SearchHotels(ctx context.Context, criteria search.Cri
 		if results[i].MinPrice == results[j].MinPrice {
 			return results[i].Rating > results[j].Rating
 		}
+
 		return results[i].MinPrice < results[j].MinPrice
 	})
+
 	return results, nil
 }
 
@@ -61,13 +67,15 @@ func (r *SearchRepository) findHotels(ctx context.Context, criteria search.Crite
 		Preload("PaymentOptions")
 
 	if q := strings.TrimSpace(criteria.Query); q != "" {
-		//TODO: replace ILIKE matching with full-text search (and optionally unaccent/trigram)
+		// TODO: replace ILIKE matching with full-text search (and optionally unaccent/trigram)
 		like := "%" + q + "%"
 		query = query.Where("hotels.name ILIKE ? OR hotels.city ILIKE ? OR hotels.address ILIKE ?", like, like, like)
 	}
+
 	if criteria.RatingMin > 0 {
 		query = query.Where("hotels.rating >= ?", criteria.RatingMin)
 	}
+
 	if len(criteria.PaymentOptions) > 0 {
 		query = query.Joins("JOIN hotel_payment_options hpo ON hpo.hotel_id = hotels.id AND hpo.enabled = TRUE").
 			Where("hpo.payment_option IN ?", criteria.PaymentOptions).
@@ -78,6 +86,7 @@ func (r *SearchRepository) findHotels(ctx context.Context, criteria search.Crite
 	if err := query.Find(&hotels).Error; err != nil {
 		return nil, err
 	}
+
 	return hotels, nil
 }
 
@@ -94,6 +103,7 @@ func (r *SearchRepository) evaluateHotelAvailability(
 	if err != nil {
 		return false, false, 0, 0, err
 	}
+
 	if len(candidates) == 0 {
 		return false, false, 0, 0, nil
 	}
@@ -108,8 +118,10 @@ func (r *SearchRepository) evaluateHotelAvailability(
 	if requiredRoomCount == 0 {
 		return false, false, minPrice, len(candidates), nil
 	}
+
 	strict = requiredRoomCount == criteria.RoomCount
 	flexible = requiredRoomCount > criteria.RoomCount
+
 	return strict, flexible, minPrice, len(candidates), nil
 }
 
@@ -117,32 +129,39 @@ func hotelMatchesFilter(h HotelModel, criteria search.Criteria) bool {
 	if criteria.RatingMin > 0 && h.Rating < criteria.RatingMin {
 		return false
 	}
+
 	if len(criteria.PaymentOptions) == 0 {
 		return true
 	}
+
 	enabled := toEnabledPaymentOptions(h.PaymentOptions)
 	if len(enabled) == 0 {
 		return false
 	}
+
 	set := make(map[string]struct{}, len(enabled))
 	for i := range enabled {
 		set[enabled[i]] = struct{}{}
 	}
+
 	for i := range criteria.PaymentOptions {
 		if _, ok := set[criteria.PaymentOptions[i]]; ok {
 			return true
 		}
 	}
+
 	return false
 }
 
 func toEnabledPaymentOptions(options []HotelPaymentOptionModel) []string {
 	result := make([]string, 0, len(options))
+
 	for i := range options {
 		if options[i].Enabled {
 			result = append(result, options[i].PaymentOption)
 		}
 	}
+
 	return result
 }
 
@@ -159,6 +178,7 @@ func (r *SearchRepository) loadRoomCandidates(ctx context.Context, hotel HotelMo
 		Find(&roomModels).Error; err != nil {
 		return nil, err
 	}
+
 	if len(roomModels) == 0 {
 		return nil, nil
 	}
@@ -172,27 +192,32 @@ func (r *SearchRepository) loadRoomCandidates(ctx context.Context, hotel HotelMo
 	if err != nil {
 		return nil, err
 	}
+
 	amenityMap, err := r.roomAmenityIDs(ctx, roomIDs)
 	if err != nil {
 		return nil, err
 	}
 
 	candidates := make([]roomCandidate, 0, len(roomModels))
+
 	for i := range roomModels {
 		available := availMap[roomModels[i].ID]
 		if available <= 0 {
 			continue
 		}
+
 		amenityIDs := amenityMap[roomModels[i].ID]
 		if !hasAllAmenities(amenityIDs, criteria.AmenityIDs) {
 			continue
 		}
+
 		candidates = append(candidates, roomCandidate{
 			Room:           roomModels[i],
 			AvailableCount: available,
 			AmenityIDs:     amenityIDs,
 		})
 	}
+
 	return candidates, nil
 }
 
@@ -207,7 +232,9 @@ func (r *SearchRepository) roomAvailabilityByDateRange(ctx context.Context, room
 		AvailableCount int
 		DayCount       int
 	}
+
 	var rows []availabilityRow
+
 	err := r.db.WithContext(ctx).
 		Table("room_inventories").
 		Select("room_id, MIN(total_inventory - held_inventory - booked_inventory) AS available_count, COUNT(*) AS day_count").
@@ -224,6 +251,7 @@ func (r *SearchRepository) roomAvailabilityByDateRange(ctx context.Context, room
 	for i := range rows {
 		result[rows[i].RoomID] = rows[i].AvailableCount
 	}
+
 	return result, nil
 }
 
@@ -232,7 +260,9 @@ func (r *SearchRepository) roomAmenityIDs(ctx context.Context, roomIDs []string)
 		RoomID    string
 		AmenityID string
 	}
+
 	var rows []row
+
 	err := r.db.WithContext(ctx).
 		Table("room_amenity_maps").
 		Select("room_id, amenity_id").
@@ -246,6 +276,7 @@ func (r *SearchRepository) roomAmenityIDs(ctx context.Context, roomIDs []string)
 	for i := range rows {
 		idMap[rows[i].RoomID] = append(idMap[rows[i].RoomID], rows[i].AmenityID)
 	}
+
 	return idMap, nil
 }
 
@@ -253,15 +284,18 @@ func hasAllAmenities(roomAmenityIDs, filterAmenityIDs []string) bool {
 	if len(filterAmenityIDs) == 0 {
 		return true
 	}
+
 	set := make(map[string]struct{}, len(roomAmenityIDs))
 	for i := range roomAmenityIDs {
 		set[roomAmenityIDs[i]] = struct{}{}
 	}
+
 	for i := range filterAmenityIDs {
 		if _, ok := set[filterAmenityIDs[i]]; !ok {
 			return false
 		}
 	}
+
 	return true
 }
 
@@ -274,16 +308,20 @@ func splitGuestsAcrossRooms(roomCount, adults int, childrenAges []int) []guestRe
 	if roomCount <= 0 {
 		return nil
 	}
+
 	rooms := make([]guestRequest, roomCount)
 	for i := 0; i < roomCount; i++ {
 		rooms[i] = guestRequest{adults: 0, childrenAges: make([]int, 0)}
 	}
+
 	for i := 0; i < adults; i++ {
 		rooms[i%roomCount].adults++
 	}
+
 	for i := range childrenAges {
 		rooms[i%roomCount].childrenAges = append(rooms[i%roomCount].childrenAges, childrenAges[i])
 	}
+
 	return rooms
 }
 
@@ -296,17 +334,21 @@ func canAllocateRequestedRooms(candidates []roomCandidate, requests []guestReque
 	for i := range requests {
 		order[i] = i
 	}
+
 	compat := make([][]int, len(requests))
+
 	for i := range requests {
 		for j := range candidates {
 			if candidateCanFit(candidates[j], requests[i], childMaxAge) && candidates[j].AvailableCount > 0 {
 				compat[i] = append(compat[i], j)
 			}
 		}
+
 		if len(compat[i]) == 0 {
 			return false
 		}
 	}
+
 	sort.Slice(order, func(i, j int) bool { return len(compat[order[i]]) < len(compat[order[j]]) })
 
 	remaining := make([]int, len(candidates))
@@ -315,21 +357,27 @@ func canAllocateRequestedRooms(candidates []roomCandidate, requests []guestReque
 	}
 
 	var dfs func(pos int) bool
+
 	dfs = func(pos int) bool {
 		if pos == len(order) {
 			return true
 		}
+
 		reqIdx := order[pos]
 		for _, candidateIdx := range compat[reqIdx] {
 			if remaining[candidateIdx] <= 0 {
 				continue
 			}
+
 			remaining[candidateIdx]--
+
 			if dfs(pos + 1) {
 				return true
 			}
+
 			remaining[candidateIdx]++
 		}
+
 		return false
 	}
 
@@ -347,24 +395,28 @@ func minimumRequiredRooms(
 	for i := range candidates {
 		totalAvailable += candidates[i].AvailableCount
 	}
+
 	for roomCount := startRoomCount; roomCount <= totalAvailable; roomCount++ {
 		requests := splitGuestsAcrossRooms(roomCount, adults, childrenAges)
 		if canAllocateRequestedRooms(candidates, requests, childMaxAge) {
 			return roomCount
 		}
 	}
+
 	return 0
 }
 
 func candidateCanFit(c roomCandidate, req guestRequest, childMaxAge int) bool {
 	adults, children := normalizeGuest(req, childMaxAge)
 	total := adults + children
+
 	return adults <= c.Room.MaxAdult && children <= c.Room.MaxChild && total <= c.Room.MaxOccupancy
 }
 
 func normalizeGuest(req guestRequest, childMaxAge int) (int, int) {
 	adults := req.adults
 	children := 0
+
 	for i := range req.childrenAges {
 		if req.childrenAges[i] > childMaxAge {
 			adults++
@@ -372,5 +424,6 @@ func normalizeGuest(req guestRequest, childMaxAge int) (int, int) {
 			children++
 		}
 	}
+
 	return adults, children
 }

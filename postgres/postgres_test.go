@@ -2,9 +2,10 @@ package postgres_test
 
 import (
 	"context"
-	"hexagon/postgres"
 	"testing"
 	"time"
+
+	"hexagon/postgres"
 
 	_ "github.com/lib/pq"
 	migrate "github.com/rubenv/sql-migrate"
@@ -25,6 +26,7 @@ func TestConnection(t *testing.T) {
 	MigrateTestDatabase(t, db, "../migrations")
 
 	var info Info
+
 	err := db.Raw("SELECT current_user").Scan(&info).Error
 	assert.NoError(t, err)
 	assert.Equal(t, dbUser, info.CurrentUser)

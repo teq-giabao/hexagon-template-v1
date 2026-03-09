@@ -2,9 +2,10 @@ package room
 
 import (
 	"encoding/json"
-	"hexagon/errs"
 	"strings"
 	"time"
+
+	"hexagon/errs"
 )
 
 var (
@@ -95,6 +96,7 @@ func ValidateID(id string) error {
 	if strings.TrimSpace(id) == "" {
 		return ErrRoomIDRequired
 	}
+
 	return nil
 }
 
@@ -106,40 +108,51 @@ func (r Room) ValidateForCreate() error {
 	if strings.TrimSpace(r.HotelID) == "" {
 		return ErrHotelIDRequired
 	}
+
 	if strings.TrimSpace(r.Name) == "" {
 		return ErrNameRequired
 	}
+
 	if r.BasePrice <= 0 {
 		return ErrBasePriceInvalid
 	}
+
 	if r.MaxAdult <= 0 {
 		return ErrMaxAdultInvalid
 	}
+
 	if r.MaxChild < 0 {
 		return ErrMaxChildInvalid
 	}
+
 	if r.MaxOccupancy <= 0 {
 		return ErrMaxOccupancyInvalid
 	}
+
 	if r.MaxOccupancy < r.MaxAdult+r.MaxChild {
 		return ErrMaxOccupancyLessThanCapacity
 	}
+
 	if !r.Status.IsValid() {
 		return ErrStatusInvalid
 	}
+
 	if len(r.Images) == 0 {
 		return ErrRoomImagesRequired
 	}
+
 	for i := range r.Images {
 		if err := r.Images[i].ValidateForRoomCreate(); err != nil {
 			return err
 		}
 	}
+
 	for i := range r.AmenityIDs {
 		if strings.TrimSpace(r.AmenityIDs[i]) == "" {
 			return ErrAmenityIDRequired
 		}
 	}
+
 	return nil
 }
 
@@ -147,6 +160,7 @@ func (img RoomImage) ValidateForCreate() error {
 	if strings.TrimSpace(img.RoomID) == "" {
 		return ErrRoomIDRequired
 	}
+
 	return img.ValidateForRoomCreate()
 }
 
@@ -154,6 +168,7 @@ func (img RoomImage) ValidateForRoomCreate() error {
 	if strings.TrimSpace(img.URL) == "" {
 		return ErrImageURLRequired
 	}
+
 	return nil
 }
 
@@ -161,21 +176,27 @@ func (inv RoomInventory) ValidateForCreate() error {
 	if strings.TrimSpace(inv.RoomID) == "" {
 		return ErrRoomIDRequired
 	}
+
 	if inv.Date.IsZero() {
 		return ErrDateRequired
 	}
+
 	if inv.TotalInventory < 0 {
 		return ErrInventoryTotalInvalid
 	}
+
 	if inv.HeldInventory < 0 {
 		return ErrInventoryHeldInvalid
 	}
+
 	if inv.BookedInventory < 0 {
 		return ErrInventoryBookedInvalid
 	}
+
 	if inv.HeldInventory+inv.BookedInventory > inv.TotalInventory {
 		return ErrInventoryOverTotal
 	}
+
 	return nil
 }
 
@@ -183,9 +204,11 @@ func (a RoomAmenity) ValidateForCreate() error {
 	if strings.TrimSpace(a.Code) == "" {
 		return ErrAmenityCodeRequired
 	}
+
 	if strings.TrimSpace(a.Name) == "" {
 		return ErrAmenityNameRequired
 	}
+
 	return nil
 }
 
@@ -193,8 +216,10 @@ func (m RoomAmenityMap) ValidateForCreate() error {
 	if strings.TrimSpace(m.RoomID) == "" {
 		return ErrRoomIDRequired
 	}
+
 	if strings.TrimSpace(m.AmenityID) == "" {
 		return ErrAmenityIDRequired
 	}
+
 	return nil
 }

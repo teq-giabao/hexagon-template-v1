@@ -30,6 +30,7 @@ func (uc *Usecase) GetHotelByID(ctx context.Context, id string) (Hotel, error) {
 	if err := ValidateID(id); err != nil {
 		return Hotel{}, err
 	}
+
 	return uc.repo.GetByID(ctx, id)
 }
 
@@ -38,8 +39,10 @@ func (uc *Usecase) AddHotel(ctx context.Context, h Hotel) (Hotel, error) {
 	if h.DefaultChildMaxAge == 0 {
 		h.DefaultChildMaxAge = 11
 	}
+
 	if err := h.ValidateForCreate(); err != nil {
 		return Hotel{}, err
 	}
+
 	return uc.repo.Create(ctx, h)
 }

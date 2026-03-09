@@ -114,6 +114,7 @@ func TestSentry_SendingBehavior(t *testing.T) {
 	t.Run("does not send when APP_ENV is local", func(t *testing.T) {
 		originalEnv := os.Getenv("APP_ENV")
 		originalDSN := os.Getenv("SENTRY_DSN")
+
 		defer func() {
 			os.Setenv("APP_ENV", originalEnv)
 			os.Setenv("SENTRY_DSN", originalDSN)
@@ -131,6 +132,7 @@ func TestSentry_SendingBehavior(t *testing.T) {
 	t.Run("does not send when SENTRY_DSN is empty", func(t *testing.T) {
 		originalEnv := os.Getenv("APP_ENV")
 		originalDSN := os.Getenv("SENTRY_DSN")
+
 		defer func() {
 			os.Setenv("APP_ENV", originalEnv)
 			os.Setenv("SENTRY_DSN", originalDSN)
@@ -148,6 +150,7 @@ func TestSentry_SendingBehavior(t *testing.T) {
 	t.Run("sends error when conditions are met", func(t *testing.T) {
 		originalEnv := os.Getenv("APP_ENV")
 		originalDSN := os.Getenv("SENTRY_DSN")
+
 		defer func() {
 			os.Setenv("APP_ENV", originalEnv)
 			os.Setenv("SENTRY_DSN", originalDSN)
@@ -179,6 +182,7 @@ func TestSentry_SendingBehavior(t *testing.T) {
 	t.Run("sends message when conditions are met", func(t *testing.T) {
 		originalEnv := os.Getenv("APP_ENV")
 		originalDSN := os.Getenv("SENTRY_DSN")
+
 		defer func() {
 			os.Setenv("APP_ENV", originalEnv)
 			os.Setenv("SENTRY_DSN", originalDSN)
@@ -211,6 +215,7 @@ func TestSentry_LogLevelMethods(t *testing.T) {
 	// Set local env to prevent actual Sentry calls
 	originalEnv := os.Getenv("APP_ENV")
 	defer os.Setenv("APP_ENV", originalEnv)
+
 	os.Setenv("APP_ENV", "local")
 
 	tests := []struct {
@@ -254,6 +259,7 @@ func TestSentry_ErrorMethods(t *testing.T) {
 	// Set local env to prevent actual Sentry calls
 	originalEnv := os.Getenv("APP_ENV")
 	defer os.Setenv("APP_ENV", originalEnv)
+
 	os.Setenv("APP_ENV", "local")
 
 	t.Run("Error handles error correctly", func(t *testing.T) {
@@ -275,6 +281,7 @@ func TestSentry_ErrorMethods(t *testing.T) {
 		// Temporarily reduce flush time for testing
 		originalFlushTime := FlushTime
 		FlushTime = 0
+
 		defer func() { FlushTime = originalFlushTime }()
 
 		sentry := new(Sentry)
@@ -288,6 +295,7 @@ func TestSentry_ErrorMethods(t *testing.T) {
 		// Temporarily reduce flush time for testing
 		originalFlushTime := FlushTime
 		FlushTime = 0
+
 		defer func() { FlushTime = originalFlushTime }()
 
 		sentry := new(Sentry)
@@ -301,6 +309,7 @@ func TestSentry_FormattedMethods(t *testing.T) {
 	// Set local env to prevent actual Sentry calls
 	originalEnv := os.Getenv("APP_ENV")
 	defer os.Setenv("APP_ENV", originalEnv)
+
 	os.Setenv("APP_ENV", "local")
 
 	t.Run("Debugf formats message", func(t *testing.T) {
@@ -326,6 +335,7 @@ func TestSentry_ConvenienceFunctions(t *testing.T) {
 	// Set local env to prevent actual Sentry calls
 	originalEnv := os.Getenv("APP_ENV")
 	defer os.Setenv("APP_ENV", originalEnv)
+
 	os.Setenv("APP_ENV", "local")
 
 	t.Run("WithContext creates sentry with context", func(t *testing.T) {
@@ -370,6 +380,7 @@ func TestSentry_StandaloneFunctions(t *testing.T) {
 	// Set local env to prevent actual Sentry calls
 	originalEnv := os.Getenv("APP_ENV")
 	defer os.Setenv("APP_ENV", originalEnv)
+
 	os.Setenv("APP_ENV", "local")
 
 	t.Run("standalone Debug function works", func(t *testing.T) {
@@ -416,6 +427,7 @@ func TestSentry_StandaloneFunctions(t *testing.T) {
 		// Temporarily reduce flush time for testing
 		originalFlushTime := FlushTime
 		FlushTime = 0
+
 		defer func() { FlushTime = originalFlushTime }()
 
 		// Should not panic
@@ -426,6 +438,7 @@ func TestSentry_StandaloneFunctions(t *testing.T) {
 		// Temporarily reduce flush time for testing
 		originalFlushTime := FlushTime
 		FlushTime = 0
+
 		defer func() { FlushTime = originalFlushTime }()
 
 		// Should not panic
@@ -455,6 +468,7 @@ func TestSentry_GetHub(t *testing.T) {
 		// Initialize Sentry SDK
 		originalDSN := os.Getenv("SENTRY_DSN")
 		originalEnv := os.Getenv("APP_ENV")
+
 		defer func() {
 			os.Setenv("SENTRY_DSN", originalDSN)
 			os.Setenv("APP_ENV", originalEnv)
@@ -467,6 +481,7 @@ func TestSentry_GetHub(t *testing.T) {
 			Dsn: "https://public@sentry.example.com/1",
 		})
 		assert.NoError(t, err)
+
 		defer sentrygo.Flush(0)
 
 		e := echo.New()

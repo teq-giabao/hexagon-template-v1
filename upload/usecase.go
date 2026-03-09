@@ -59,6 +59,7 @@ func (uc *Usecase) UploadImages(ctx context.Context, folder string, files []File
 	if uc.uploader == nil {
 		return nil, ErrUploaderUnavailable
 	}
+
 	if len(files) == 0 {
 		return nil, ErrNoImageFile
 	}
@@ -69,13 +70,16 @@ func (uc *Usecase) UploadImages(ctx context.Context, folder string, files []File
 	}
 
 	uploaded := make([]UploadedFile, 0, len(files))
+
 	for i := range files {
 		file, err := uc.uploadImage(ctx, folder, files[i])
 		if err != nil {
 			return nil, err
 		}
+
 		uploaded = append(uploaded, file)
 	}
+
 	return uploaded, nil
 }
 
@@ -83,6 +87,7 @@ func (uc *Usecase) uploadImage(ctx context.Context, folder string, file File) (U
 	if file.Size > uc.maxImageSize {
 		return UploadedFile{}, ErrImageTooLarge
 	}
+
 	if file.Open == nil {
 		return UploadedFile{}, fmt.Errorf("open uploaded file: open function is nil")
 	}
@@ -99,6 +104,7 @@ func (uc *Usecase) uploadImage(ctx context.Context, folder string, file File) (U
 	}
 
 	objectKey := buildImageObjectKey(file.Filename, contentType, folder)
+
 	url, err := uc.uploader.Upload(ctx, objectKey, reader, file.Size, contentType)
 	if err != nil {
 		return UploadedFile{}, fmt.Errorf("upload image to storage: %w", err)
@@ -114,10 +120,12 @@ func (uc *Usecase) uploadImage(ctx context.Context, folder string, file File) (U
 
 func detectImageContentType(reader io.ReadSeeker) (string, error) {
 	buf := make([]byte, 512)
+
 	n, err := reader.Read(buf)
 	if err != nil && !errors.Is(err, io.EOF) {
 		return "", fmt.Errorf("read file header: %w", err)
 	}
+
 	if _, err = reader.Seek(0, io.SeekStart); err != nil {
 		return "", fmt.Errorf("reset file reader: %w", err)
 	}
@@ -136,9 +144,11 @@ func buildImageObjectKey(filename, contentType, folder string) string {
 	if ext == "" {
 		ext = contentTypeToExtension(contentType)
 	}
+
 	if ext == "" {
 		ext = ".bin"
 	}
+
 	return folder + "/" + time.Now().UTC().Format("20060102") + "/" + randomHex(16) + ext
 }
 
@@ -162,5 +172,6 @@ func randomHex(bytesCount int) string {
 	if _, err := rand.Read(b); err != nil {
 		return fmt.Sprintf("%d", time.Now().UnixNano())
 	}
+
 	return hex.EncodeToString(b)
 }

@@ -2,6 +2,8 @@ package httpserver
 
 import (
 	"context"
+	"net/http"
+
 	"hexagon/auth"
 	"hexagon/errs"
 	"hexagon/hotel"
@@ -10,10 +12,9 @@ import (
 	"hexagon/search"
 	"hexagon/upload"
 	"hexagon/user"
-	"net/http"
 
 	sentryecho "github.com/getsentry/sentry-go/echo"
-	"github.com/labstack/echo-jwt/v4"
+	echojwt "github.com/labstack/echo-jwt/v4"
 	"github.com/labstack/echo/v4"
 	"github.com/labstack/echo/v4/middleware"
 )
@@ -74,6 +75,7 @@ func Default(cfg *config.Config) *Server {
 	s.RegisterHotelRoutes()
 	s.RegisterRoomRoutes()
 	s.RegisterSearchRoutes()
+
 	return &s
 }
 

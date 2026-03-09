@@ -53,6 +53,7 @@ func LoadConfig() (*Config, error) {
 	_ = godotenv.Load()
 
 	cfg := new(Config)
+
 	err := envconfig.Process("", cfg)
 	if err != nil {
 		return nil, fmt.Errorf("load config error: %v", err)

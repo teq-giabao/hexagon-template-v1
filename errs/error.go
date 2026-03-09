@@ -43,11 +43,13 @@ func (e *Error) Error() string {
 // Non-application errors always return EINTERNAL.
 func ErrorCode(err error) string {
 	var e *Error
+
 	if err == nil {
 		return ""
 	} else if errors.As(err, &e) {
 		return e.Code
 	}
+
 	return EINTERNAL
 }
 
@@ -55,11 +57,13 @@ func ErrorCode(err error) string {
 // Non-application errors always return "Internal error".
 func ErrorMessage(err error) string {
 	var e *Error
+
 	if err == nil {
 		return ""
 	} else if errors.As(err, &e) {
 		return e.Message
 	}
+
 	return "Internal error."
 }
 

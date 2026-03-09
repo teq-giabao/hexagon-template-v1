@@ -5,10 +5,11 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
-	"hexagon/auth"
 	"net/http"
 	"strconv"
 	"strings"
+
+	"hexagon/auth"
 
 	"golang.org/x/oauth2"
 	"golang.org/x/oauth2/google"
@@ -28,24 +29,31 @@ func (b *flexibleBool) UnmarshalJSON(data []byte) error {
 		*b = false
 		return nil
 	}
+
 	if s == "true" || s == "false" {
 		var v bool
 		if err := json.Unmarshal(data, &v); err != nil {
 			return err
 		}
+
 		*b = flexibleBool(v)
+
 		return nil
 	}
+
 	if len(s) >= 2 && s[0] == '"' && s[len(s)-1] == '"' {
 		unquoted, err := strconv.Unquote(s)
 		if err != nil {
 			return err
 		}
+
 		v, err := strconv.ParseBool(strings.TrimSpace(unquoted))
 		if err != nil {
 			return err
 		}
+
 		*b = flexibleBool(v)
+
 		return nil
 	}
 
@@ -101,14 +109,17 @@ func (p *Provider) Exchange(ctx context.Context, code string) (auth.OAuthUser, e
 	}
 
 	client := oauth2.NewClient(ctx, oauth2.StaticTokenSource(token))
+
 	req, err := http.NewRequestWithContext(ctx, http.MethodGet, userInfoEndpoint, nil)
 	if err != nil {
 		return auth.OAuthUser{}, err
 	}
+
 	resp, err := client.Do(req)
 	if err != nil {
 		return auth.OAuthUser{}, err
 	}
+
 	defer resp.Body.Close()
 
 	if resp.StatusCode < 200 || resp.StatusCode > 299 {
@@ -121,6 +132,7 @@ func (p *Provider) Exchange(ctx context.Context, code string) (auth.OAuthUser, e
 		Name          string       `json:"name"`
 		VerifiedEmail flexibleBool `json:"verified_email"` // nolint: tagliatelle
 	}
+
 	if err := json.NewDecoder(resp.Body).Decode(&payload); err != nil {
 		return auth.OAuthUser{}, err
 	}

@@ -22,5 +22,6 @@ func (u *Usecase) SearchHotels(ctx context.Context, criteria Criteria) ([]HotelS
 	if err := criteria.Validate(); err != nil {
 		return nil, err
 	}
+
 	return u.repo.SearchHotels(ctx, criteria)
 }

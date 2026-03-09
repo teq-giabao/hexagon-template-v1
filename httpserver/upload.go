@@ -2,10 +2,11 @@ package httpserver
 
 import (
 	"errors"
-	"hexagon/upload"
 	"io"
 	"mime/multipart"
 	"net/http"
+
+	"hexagon/upload"
 
 	"github.com/labstack/echo/v4"
 )
@@ -21,6 +22,7 @@ func (s *Server) handleUploadImages(c echo.Context, folder string) error {
 	}
 
 	files := toUploadFiles(collectImageFiles(form))
+
 	uploaded, err := s.UploadService.UploadImages(c.Request().Context(), folder, files)
 	if err != nil {
 		switch {
@@ -52,14 +54,17 @@ func collectImageFiles(form *multipart.Form) []*multipart.FileHeader {
 	if form == nil {
 		return nil
 	}
+
 	files := make([]*multipart.FileHeader, 0, len(form.File["image"])+len(form.File["images"]))
 	files = append(files, form.File["image"]...)
 	files = append(files, form.File["images"]...)
+
 	return files
 }
 
 func toUploadFiles(headers []*multipart.FileHeader) []upload.File {
 	files := make([]upload.File, 0, len(headers))
+
 	for i := range headers {
 		header := headers[i]
 		files = append(files, upload.File{
@@ -70,5 +75,6 @@ func toUploadFiles(headers []*multipart.FileHeader) []upload.File {
 			},
 		})
 	}
+
 	return files
 }

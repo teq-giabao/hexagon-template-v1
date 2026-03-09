@@ -20,10 +20,12 @@ func clientInfoFromContext(ctx context.Context) ClientInfo {
 	if ctx == nil {
 		return ClientInfo{}
 	}
+
 	info, ok := ctx.Value(clientInfoContextKey{}).(ClientInfo)
 	if !ok {
 		return ClientInfo{}
 	}
+
 	return normalizeClientInfo(info)
 }
 
@@ -39,5 +41,6 @@ func trimWithMaxLen(s string, maxLen int) string {
 	if maxLen > 0 && len(s) > maxLen {
 		return s[:maxLen]
 	}
+
 	return s
 }

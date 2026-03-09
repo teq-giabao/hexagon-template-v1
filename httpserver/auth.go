@@ -58,6 +58,7 @@ func (s *Server) handleRegister(c echo.Context) error {
 	if err := c.Bind(&req); err != nil {
 		return respondError(c, http.StatusBadRequest, "invalid request body", err.Error())
 	}
+
 	if err := c.Validate(&req); err != nil {
 		return respondError(c, http.StatusBadRequest, "invalid request body", err.Error())
 	}
@@ -76,9 +77,11 @@ func (s *Server) handleRegister(c echo.Context) error {
 		if errors.Is(err, auth.ErrEmailRegisteredWithOAuth) {
 			return respondError(c, http.StatusConflict, "email already registered with oauth", err.Error())
 		}
+
 		if errors.Is(err, user.ErrEmailAlreadyExists) {
 			return respondError(c, http.StatusConflict, "email already exists", err.Error())
 		}
+
 		return respondError(c, http.StatusInternalServerError, "internal error", err.Error())
 	}
 
@@ -107,6 +110,7 @@ func (s *Server) handleLogin(c echo.Context) error {
 	if err := c.Bind(&req); err != nil {
 		return respondError(c, http.StatusBadRequest, "invalid request body", err.Error())
 	}
+
 	if err := c.Validate(&req); err != nil {
 		return respondError(c, http.StatusBadRequest, "invalid request body", err.Error())
 	}
@@ -119,17 +123,19 @@ func (s *Server) handleLogin(c echo.Context) error {
 		req.Email,
 		req.Password,
 	)
-
 	if err != nil {
 		if errors.Is(err, auth.ErrPasswordAuthNotAvailable) {
 			return respondError(c, http.StatusUnauthorized, "password login is not available for this account", err.Error())
 		}
+
 		if errors.Is(err, auth.ErrAccountLocked) {
 			return respondError(c, http.StatusTooManyRequests, "account temporarily locked", err.Error())
 		}
+
 		if errors.Is(err, auth.ErrInvalidCredentials) {
 			return respondError(c, http.StatusUnauthorized, "invalid credentials", err.Error())
 		}
+
 		return respondError(c, http.StatusInternalServerError, "internal error", err.Error())
 	}
 
@@ -157,9 +163,11 @@ func (s *Server) handleLogout(c echo.Context) error {
 	if err := c.Bind(&req); err != nil {
 		return respondError(c, http.StatusBadRequest, "invalid request body", err.Error())
 	}
+
 	if err := c.Validate(&req); err != nil {
 		return respondError(c, http.StatusBadRequest, "invalid request body", err.Error())
 	}
+
 	if err := s.AuthService.Logout(auth.WithClientInfo(c.Request().Context(), auth.ClientInfo{
 		UserAgent: c.Request().UserAgent(),
 		IPAddress: c.RealIP(),
@@ -167,8 +175,10 @@ func (s *Server) handleLogout(c echo.Context) error {
 		if errors.Is(err, auth.ErrInvalidRefreshToken) {
 			return respondError(c, http.StatusUnauthorized, "invalid refresh token", err.Error())
 		}
+
 		return respondError(c, http.StatusInternalServerError, "internal error", err.Error())
 	}
+
 	return respondOK(c, map[string]any{})
 }
 
@@ -188,9 +198,11 @@ func (s *Server) handleForgotPassword(c echo.Context) error {
 	if err := c.Bind(&req); err != nil {
 		return respondError(c, http.StatusBadRequest, "invalid request body", err.Error())
 	}
+
 	if err := c.Validate(&req); err != nil {
 		return respondError(c, http.StatusBadRequest, "invalid request body", err.Error())
 	}
+
 	if err := s.AuthService.ForgotPassword(auth.WithClientInfo(c.Request().Context(), auth.ClientInfo{
 		UserAgent: c.Request().UserAgent(),
 		IPAddress: c.RealIP(),
@@ -198,11 +210,14 @@ func (s *Server) handleForgotPassword(c echo.Context) error {
 		if errors.Is(err, auth.ErrPasswordAuthNotAvailable) {
 			return respondError(c, http.StatusBadRequest, "password reset is not available for this account", err.Error())
 		}
+
 		if errors.Is(err, auth.ErrMailerNotConfigured) {
 			return respondError(c, http.StatusNotImplemented, "password reset mailer not configured", err.Error())
 		}
+
 		return respondError(c, http.StatusInternalServerError, "internal error", err.Error())
 	}
+
 	return respondOK(c, map[string]any{})
 }
 
@@ -223,9 +238,11 @@ func (s *Server) handleResetPassword(c echo.Context) error {
 	if err := c.Bind(&req); err != nil {
 		return respondError(c, http.StatusBadRequest, "invalid request body", err.Error())
 	}
+
 	if err := c.Validate(&req); err != nil {
 		return respondError(c, http.StatusBadRequest, "invalid request body", err.Error())
 	}
+
 	if err := s.AuthService.ResetPassword(auth.WithClientInfo(c.Request().Context(), auth.ClientInfo{
 		UserAgent: c.Request().UserAgent(),
 		IPAddress: c.RealIP(),
@@ -233,11 +250,14 @@ func (s *Server) handleResetPassword(c echo.Context) error {
 		if errors.Is(err, auth.ErrPasswordAuthNotAvailable) {
 			return respondError(c, http.StatusBadRequest, "password reset is not available for this account", err.Error())
 		}
+
 		if errors.Is(err, auth.ErrInvalidResetToken) {
 			return respondError(c, http.StatusUnauthorized, "invalid reset token", err.Error())
 		}
+
 		return respondError(c, http.StatusInternalServerError, "internal error", err.Error())
 	}
+
 	return respondOK(c, map[string]any{})
 }
 
@@ -256,12 +276,15 @@ func (s *Server) handleMe(c echo.Context) error {
 	if !ok || token == nil {
 		return respondError(c, http.StatusUnauthorized, "invalid access token", "missing jwt context")
 	}
+
 	claims, ok := token.Claims.(jwt.MapClaims)
 	if !ok {
 		return respondError(c, http.StatusUnauthorized, "invalid access token", "invalid jwt claims")
 	}
+
 	email, _ := claims["email"].(string)
 	email = strings.TrimSpace(email)
+
 	if email == "" {
 		return respondError(c, http.StatusUnauthorized, "invalid access token", "missing email claim")
 	}
@@ -270,6 +293,7 @@ func (s *Server) handleMe(c echo.Context) error {
 	if err != nil {
 		return respondError(c, http.StatusInternalServerError, "internal error", err.Error())
 	}
+
 	return respondOK(c, toUserResponse(u))
 }
 
@@ -292,6 +316,7 @@ func (s *Server) handleGoogleLogin(c echo.Context) error {
 		if errors.Is(err, auth.ErrOAuthNotConfigured) {
 			return respondError(c, http.StatusNotImplemented, "oauth not configured", err.Error())
 		}
+
 		return respondError(c, http.StatusInternalServerError, "internal error", err.Error())
 	}
 
@@ -324,6 +349,7 @@ func (s *Server) handleGoogleLogin(c echo.Context) error {
 func (s *Server) handleGoogleCallback(c echo.Context) error {
 	code := c.QueryParam("code")
 	state := c.QueryParam("state")
+
 	if code == "" || state == "" {
 		return respondError(c, http.StatusBadRequest, "missing code or state", "missing query parameter code or state")
 	}
@@ -341,12 +367,15 @@ func (s *Server) handleGoogleCallback(c echo.Context) error {
 		if errors.Is(err, auth.ErrOAuthNotConfigured) {
 			return respondError(c, http.StatusNotImplemented, "oauth not configured", err.Error())
 		}
+
 		if errors.Is(err, auth.ErrMissingCode) || errors.Is(err, auth.ErrMissingState) {
 			return respondError(c, http.StatusBadRequest, "missing oauth parameters", err.Error())
 		}
+
 		if errors.Is(err, auth.ErrMissingEmail) || errors.Is(err, auth.ErrUnverifiedEmail) || errors.Is(err, auth.ErrInvalidOAuthUser) {
 			return respondError(c, http.StatusUnauthorized, "invalid oauth user", err.Error())
 		}
+
 		return respondError(c, http.StatusInternalServerError, "internal error", err.Error())
 	}
 
@@ -368,10 +397,12 @@ func generateOAuthState(length int) (string, error) {
 	if length <= 0 {
 		return "", errors.New("invalid state length")
 	}
+
 	buf := make([]byte, length)
 	if _, err := rand.Read(buf); err != nil {
 		return "", err
 	}
+
 	return base64.RawURLEncoding.EncodeToString(buf), nil
 }
 
@@ -393,6 +424,7 @@ func (s *Server) handleRefresh(c echo.Context) error {
 	if err := c.Bind(&req); err != nil {
 		return respondError(c, http.StatusBadRequest, "invalid request body", err.Error())
 	}
+
 	if err := c.Validate(&req); err != nil {
 		return respondError(c, http.StatusBadRequest, "invalid request body", err.Error())
 	}
@@ -405,6 +437,7 @@ func (s *Server) handleRefresh(c echo.Context) error {
 		if errors.Is(err, auth.ErrInvalidRefreshToken) {
 			return respondError(c, http.StatusUnauthorized, "invalid refresh token", err.Error())
 		}
+
 		return respondError(c, http.StatusInternalServerError, "internal error", err.Error())
 	}
 

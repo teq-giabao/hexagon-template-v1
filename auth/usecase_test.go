@@ -3,10 +3,11 @@ package auth_test
 import (
 	"context"
 	"errors"
-	"hexagon/auth"
-	"hexagon/user"
 	"testing"
 	"time"
+
+	"hexagon/auth"
+	"hexagon/user"
 
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
@@ -24,6 +25,7 @@ func (m *mockUserRepo) GetByEmail(ctx context.Context, email string) (user.User,
 	if m.getByEmailFn != nil {
 		return m.getByEmailFn(ctx, email)
 	}
+
 	return user.User{}, user.ErrUserNotFound
 }
 
@@ -31,6 +33,7 @@ func (m *mockUserRepo) GetByID(ctx context.Context, id string) (user.User, error
 	if m.getByIDFn != nil {
 		return m.getByIDFn(ctx, id)
 	}
+
 	return user.User{}, user.ErrUserNotFound
 }
 
@@ -42,6 +45,7 @@ func (m *mockUserRepo) CreateUserTx(ctx context.Context, u user.User, fn func(cr
 	if m.createUserTxFn != nil {
 		return m.createUserTxFn(ctx, u, fn)
 	}
+
 	return user.User{}, errors.New("not implemented")
 }
 
@@ -49,6 +53,7 @@ func (m *mockUserRepo) UpdatePasswordHash(ctx context.Context, id, passwordHash 
 	if m.updatePasswordHashFn != nil {
 		return m.updatePasswordHashFn(ctx, id, passwordHash)
 	}
+
 	return nil
 }
 
@@ -64,6 +69,7 @@ func (m *mockUserRepo) UpdateAuthState(
 	if m.updateAuthStateFn != nil {
 		return m.updateAuthStateFn(ctx, id, failedLoginAttempts, lockUntil, lockEscalationLevel, lastFailedLoginAt, status)
 	}
+
 	return nil
 }
 
@@ -78,6 +84,7 @@ func (m *mockRefreshRepo) Save(ctx context.Context, token auth.RefreshToken) err
 	if m.saveFn != nil {
 		return m.saveFn(ctx, token)
 	}
+
 	return nil
 }
 
@@ -85,6 +92,7 @@ func (m *mockRefreshRepo) GetActiveByHash(ctx context.Context, tokenHash string)
 	if m.getActiveByHashFn != nil {
 		return m.getActiveByHashFn(ctx, tokenHash)
 	}
+
 	return auth.RefreshToken{}, errors.New("not found")
 }
 
@@ -92,6 +100,7 @@ func (m *mockRefreshRepo) RevokeByHash(ctx context.Context, tokenHash string, re
 	if m.revokeByHashFn != nil {
 		return m.revokeByHashFn(ctx, tokenHash, revokedAt)
 	}
+
 	return nil
 }
 
@@ -99,6 +108,7 @@ func (m *mockRefreshRepo) RevokeAllByUserID(ctx context.Context, userID string, 
 	if m.revokeAllByUserIDFn != nil {
 		return m.revokeAllByUserIDFn(ctx, userID, revokedAt)
 	}
+
 	return nil
 }
 
@@ -115,6 +125,7 @@ func (m *mockResetRepo) GetActiveByHash(ctx context.Context, tokenHash string) (
 	if m.getActiveByHashFn != nil {
 		return m.getActiveByHashFn(ctx, tokenHash)
 	}
+
 	return auth.PasswordResetToken{}, errors.New("not found")
 }
 
@@ -122,6 +133,7 @@ func (m *mockResetRepo) MarkUsedByHash(ctx context.Context, tokenHash string, us
 	if m.markUsedFn != nil {
 		return m.markUsedFn(ctx, tokenHash, usedAt)
 	}
+
 	return nil
 }
 
@@ -144,6 +156,7 @@ func (m *mockHasher) Compare(hashed, plain string) error {
 	if m.compareFn != nil {
 		return m.compareFn(hashed, plain)
 	}
+
 	return nil
 }
 
@@ -151,6 +164,7 @@ func (m *mockHasher) Hash(password string) (string, error) {
 	if m.hashFn != nil {
 		return m.hashFn(password)
 	}
+
 	return "hashed", nil
 }
 
@@ -164,6 +178,7 @@ func (m *mockTokenProvider) GenerateAccessToken(u user.User) (string, error) {
 	if m.generateAccessFn != nil {
 		return m.generateAccessFn(u)
 	}
+
 	return "access-token", nil
 }
 
@@ -171,6 +186,7 @@ func (m *mockTokenProvider) GenerateRefreshToken(u user.User) (string, error) {
 	if m.generateRefreshFn != nil {
 		return m.generateRefreshFn(u)
 	}
+
 	return "refresh-token-next", nil
 }
 
@@ -182,6 +198,7 @@ func (m *mockTokenProvider) ParseRefreshToken(refreshToken string) (user.User, e
 	if m.parseRefreshFn != nil {
 		return m.parseRefreshFn(refreshToken)
 	}
+
 	return user.User{}, errors.New("invalid")
 }
 
@@ -248,7 +265,9 @@ func TestRefresh_FailsWhenSessionClientInfoMismatches(t *testing.T) {
 
 func TestResetPassword_RevokesAllSessionsOnSuccess(t *testing.T) {
 	now := time.Date(2026, 3, 2, 10, 0, 0, 0, time.UTC)
+
 	var revokeAllCalled bool
+
 	var markUsedCalled bool
 
 	repo := &mockUserRepo{
@@ -258,14 +277,17 @@ func TestResetPassword_RevokesAllSessionsOnSuccess(t *testing.T) {
 		updatePasswordHashFn: func(ctx context.Context, id, passwordHash string) error {
 			assert.Equal(t, "u1", id)
 			assert.Equal(t, "new-hash", passwordHash)
+
 			return nil
 		},
 	}
 	refreshRepo := &mockRefreshRepo{
 		revokeAllByUserIDFn: func(ctx context.Context, userID string, revokedAt time.Time) error {
 			revokeAllCalled = true
+
 			assert.Equal(t, "u1", userID)
 			assert.Equal(t, now, revokedAt)
+
 			return nil
 		},
 	}
@@ -279,7 +301,9 @@ func TestResetPassword_RevokesAllSessionsOnSuccess(t *testing.T) {
 		},
 		markUsedFn: func(ctx context.Context, tokenHash string, usedAt time.Time) error {
 			markUsedCalled = true
+
 			assert.Equal(t, now, usedAt)
+
 			return nil
 		},
 	}

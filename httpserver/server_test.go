@@ -6,13 +6,14 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
-	"hexagon/errs"
-	"hexagon/httpserver"
 	"net"
 	"net/http"
 	"net/http/httptest"
 	"testing"
 	"time"
+
+	"hexagon/errs"
+	"hexagon/httpserver"
 
 	"github.com/labstack/echo/v4"
 	"github.com/labstack/echo/v4/middleware"
@@ -38,6 +39,7 @@ func TestServerStartAndShutdown(t *testing.T) {
 
 	// Act
 	errChan := startServerAsync(server)
+
 	waitForServerReady(port)
 
 	// Assert
@@ -195,6 +197,7 @@ func TestCustomErrorHandler(t *testing.T) {
 			assert.Equal(t, tt.expectedStatusCode, response.Code)
 
 			var body map[string]string
+
 			err := json.Unmarshal(response.Body.Bytes(), &body)
 			require.NoError(t, err)
 			assert.Equal(t, tt.expectedMessage, body["message"])
@@ -207,19 +210,25 @@ func TestCustomErrorHandler(t *testing.T) {
 
 func allocateRandomPort(t *testing.T) int {
 	t.Helper()
+
 	listener, err := net.Listen("tcp", "127.0.0.1:0")
 	require.NoError(t, err)
+
 	port := listener.Addr().(*net.TCPAddr).Port
 	listener.Close()
+
 	return port
 }
 
 func startServerAsync(server *httpserver.Server) chan error {
 	errChan := make(chan error, 1)
+
 	go func() {
 		errChan <- server.Start()
 	}()
+
 	time.Sleep(100 * time.Millisecond) // Wait for server to start
+
 	return errChan
 }
 
@@ -232,6 +241,7 @@ func waitForServerReady(port int) {
 
 func assertServerIsRunning(t *testing.T, port int) {
 	t.Helper()
+
 	resp, err := http.Get(fmt.Sprintf("http://127.0.0.1:%d/", port))
 	if err == nil {
 		resp.Body.Close()
@@ -241,6 +251,7 @@ func assertServerIsRunning(t *testing.T, port int) {
 
 func assertServerStopsGracefully(t *testing.T, server *httpserver.Server, errChan chan error) {
 	t.Helper()
+
 	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
 	defer cancel()
 
@@ -262,8 +273,10 @@ func makeRequest(server *httpserver.Server, method, path string, headers map[str
 	for key, value := range headers {
 		req.Header.Set(key, value)
 	}
+
 	rec := httptest.NewRecorder()
 	server.Router.ServeHTTP(rec, req)
+
 	return rec
 }
 
@@ -300,11 +313,13 @@ func configureServerWithCORS(allowOrigins []string) *httpserver.Server {
 	// Apply minimal middlewares needed for testing
 	server.Router.Use(middleware.Recover())
 	server.Router.Use(middleware.RequestID())
+
 	if len(server.AllowOrigins) > 0 {
 		server.Router.Use(middleware.CORSWithConfig(middleware.CORSConfig{
 			AllowOrigins: server.AllowOrigins,
 		}))
 	}
+
 	return server
 }
 
@@ -320,6 +335,7 @@ func assertSecurityMiddlewareApplied(t *testing.T, response *httptest.ResponseRe
 
 func assertCORSBehavior(t *testing.T, response *httptest.ResponseRecorder, expectCORS bool) {
 	t.Helper()
+
 	corsHeader := response.Header().Get("Access-Control-Allow-Origin")
 	if expectCORS {
 		assert.NotEmpty(t, corsHeader, "CORS header should be present")

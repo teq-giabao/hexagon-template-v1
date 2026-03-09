@@ -1,9 +1,10 @@
 package httpserver
 
 import (
-	"hexagon/room"
 	"net/http"
 	"time"
+
+	"hexagon/room"
 
 	"github.com/labstack/echo/v4"
 )
@@ -32,6 +33,7 @@ func (s *Server) handleAddRoom(c echo.Context) error {
 	if err := c.Bind(&req); err != nil {
 		return respondError(c, http.StatusBadRequest, "invalid request body", err.Error())
 	}
+
 	if err := c.Validate(&req); err != nil {
 		return respondError(c, http.StatusBadRequest, "invalid request body", err.Error())
 	}
@@ -40,6 +42,7 @@ func (s *Server) handleAddRoom(c echo.Context) error {
 	if err != nil {
 		return err
 	}
+
 	return respondCreated(c, toRoomResponse(created))
 }
 
@@ -60,6 +63,7 @@ func (s *Server) handleAddRoomAmenity(c echo.Context) error {
 	if err := c.Bind(&req); err != nil {
 		return respondError(c, http.StatusBadRequest, "invalid request body", err.Error())
 	}
+
 	if err := c.Validate(&req); err != nil {
 		return respondError(c, http.StatusBadRequest, "invalid request body", err.Error())
 	}
@@ -68,6 +72,7 @@ func (s *Server) handleAddRoomAmenity(c echo.Context) error {
 	if err != nil {
 		return err
 	}
+
 	return respondCreated(c, toRoomAmenityResponse(created))
 }
 
@@ -95,6 +100,7 @@ func (s *Server) handleAddRoomInventory(c echo.Context) error {
 	if err := c.Bind(&req); err != nil {
 		return respondError(c, http.StatusBadRequest, "invalid request body", err.Error())
 	}
+
 	if err := c.Validate(&req); err != nil {
 		return respondError(c, http.StatusBadRequest, "invalid request body", err.Error())
 	}
@@ -108,6 +114,7 @@ func (s *Server) handleAddRoomInventory(c echo.Context) error {
 	if err != nil {
 		return err
 	}
+
 	return respondCreated(c, toRoomInventoryResponse(created))
 }
 

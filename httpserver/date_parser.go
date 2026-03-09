@@ -14,9 +14,11 @@ func parseISODateRange(from, to string) (time.Time, time.Time, error) {
 	if err != nil {
 		return time.Time{}, time.Time{}, err
 	}
+
 	toDate, err := parseISODate(to)
 	if err != nil {
 		return time.Time{}, time.Time{}, err
 	}
+
 	return fromDate, toDate, nil
 }

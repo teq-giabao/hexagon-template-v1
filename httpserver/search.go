@@ -26,6 +26,7 @@ func (s *Server) handleSearchHotels(c echo.Context) error {
 	if err := c.Bind(&req); err != nil {
 		return respondError(c, http.StatusBadRequest, "invalid request body", err.Error())
 	}
+
 	if err := c.Validate(&req); err != nil {
 		return respondError(c, http.StatusBadRequest, "invalid request body", err.Error())
 	}
@@ -39,5 +40,6 @@ func (s *Server) handleSearchHotels(c echo.Context) error {
 	if err != nil {
 		return err
 	}
+
 	return respondOK(c, APIDataResult{Data: toSearchHotelsResponse(result)})
 }

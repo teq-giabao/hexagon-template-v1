@@ -2,13 +2,14 @@ package httpserver
 
 import (
 	"encoding/json"
+	"net/http"
+	"strconv"
+	"time"
+
 	"hexagon/hotel"
 	"hexagon/room"
 	"hexagon/search"
 	"hexagon/user"
-	"net/http"
-	"strconv"
-	"time"
 
 	"github.com/labstack/echo/v4"
 )
@@ -83,6 +84,7 @@ func (m HTTPStatusCodeMapper) Code(httpStatus int) string {
 	if code, ok := m.codes[httpStatus]; ok {
 		return code
 	}
+
 	return strconv.Itoa(httpStatus)
 }
 
@@ -104,6 +106,7 @@ func toUserResponses(users []user.User) []UserResponse {
 	for i, u := range users {
 		resp[i] = toUserResponse(u)
 	}
+
 	return resp
 }
 
@@ -191,6 +194,7 @@ func toHotelResponses(hotels []hotel.Hotel) []HotelResponse {
 	for i := range hotels {
 		resp[i] = toHotelResponse(hotels[i])
 	}
+
 	return resp
 }
 
@@ -248,10 +252,12 @@ func toRoomResponse(r room.Room) RoomResponse {
 			IsCover: r.Images[i].IsCover,
 		}
 	}
+
 	amenities := make([]RoomAmenityResponse, len(r.Amenities))
 	for i := range r.Amenities {
 		amenities[i] = toRoomAmenityResponse(r.Amenities[i])
 	}
+
 	return RoomResponse{
 		ID:           r.ID,
 		HotelID:      r.HotelID,
@@ -298,10 +304,12 @@ func jsonValueOrEmptyArray(raw json.RawMessage) any {
 	if len(raw) == 0 {
 		return []any{}
 	}
+
 	var decoded any
 	if err := json.Unmarshal(raw, &decoded); err != nil {
 		return []any{}
 	}
+
 	return decoded
 }
 
@@ -338,5 +346,6 @@ func toSearchHotelsResponse(in []search.HotelSearchResult) SearchHotelsResponse 
 			FlexibleMatch:      in[i].FlexibleMatch,
 		}
 	}
+
 	return SearchHotelsResponse{Hotels: hotels}
 }

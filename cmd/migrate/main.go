@@ -1,11 +1,12 @@
 package main
 
 import (
-	"hexagon/pkg/config"
-	"hexagon/postgres"
 	"log/slog"
 	"os"
 	"strconv"
+
+	"hexagon/pkg/config"
+	"hexagon/postgres"
 
 	_ "github.com/lib/pq"
 	migrate "github.com/rubenv/sql-migrate"

@@ -18,6 +18,7 @@ func NewProvider(apiKey, fromEmail, fromName string) (*Provider, error) {
 	apiKey = strings.TrimSpace(apiKey)
 	fromEmail = strings.TrimSpace(fromEmail)
 	fromName = strings.TrimSpace(fromName)
+
 	if apiKey == "" || fromEmail == "" {
 		return nil, fmt.Errorf("invalid resend configuration")
 	}
@@ -38,6 +39,7 @@ func (p *Provider) SendResetPasswordEmail(ctx context.Context, toEmail, toName, 
 
 	toEmail = strings.TrimSpace(toEmail)
 	toName = strings.TrimSpace(toName)
+
 	resetURL = strings.TrimSpace(resetURL)
 	if toEmail == "" || resetURL == "" {
 		return fmt.Errorf("invalid reset mail payload")
@@ -57,6 +59,7 @@ func (p *Provider) SendResetPasswordEmail(ctx context.Context, toEmail, toName, 
 	}
 
 	_, err := p.client.Emails.Send(params)
+
 	return err
 }
 
@@ -64,6 +67,7 @@ func fromHeader(name, email string) string {
 	if strings.TrimSpace(name) == "" {
 		return email
 	}
+
 	return fmt.Sprintf("%s <%s>", strings.TrimSpace(name), email)
 }
 
@@ -71,5 +75,6 @@ func displayName(name string) string {
 	if strings.TrimSpace(name) == "" {
 		return "there"
 	}
+
 	return strings.TrimSpace(name)
 }

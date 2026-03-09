@@ -3,9 +3,10 @@ package postgres
 import (
 	"context"
 	"encoding/json"
-	"hexagon/room"
 	"strings"
 	"time"
+
+	"hexagon/room"
 
 	"gorm.io/gorm"
 )
@@ -95,11 +96,13 @@ func (r *RoomRepository) CreateRoom(ctx context.Context, rm room.Room) (room.Roo
 		if err := tx.Create(&model).Error; err != nil {
 			return err
 		}
+
 		if len(rm.Images) > 0 {
 			images := make([]RoomImageModel, len(rm.Images))
 			for i := range rm.Images {
 				images[i] = RoomImageModel{RoomID: model.ID, URL: rm.Images[i].URL, IsCover: rm.Images[i].IsCover}
 			}
+
 			if err := tx.Create(&images).Error; err != nil {
 				return err
 			}
@@ -115,12 +118,15 @@ func (r *RoomRepository) CreateRoom(ctx context.Context, rm room.Room) (room.Roo
 	if err := r.db.WithContext(ctx).Preload("Images").Where("id = ?", model.ID).First(&created).Error; err != nil {
 		return room.Room{}, err
 	}
+
 	amenities, err := r.listRoomAmenities(ctx, created.ID)
 	if err != nil {
 		return room.Room{}, err
 	}
+
 	result := toDomainRoom(created)
 	result.Amenities = amenities
+
 	return result, nil
 }
 
@@ -134,6 +140,7 @@ func (r *RoomRepository) CreateAmenity(ctx context.Context, amenity room.RoomAme
 	if err := r.db.WithContext(ctx).Create(&model).Error; err != nil {
 		return room.RoomAmenity{}, err
 	}
+
 	return room.RoomAmenity{
 		ID:          model.ID,
 		Code:        model.Code,
@@ -156,6 +163,7 @@ func (r *RoomRepository) CreateInventory(ctx context.Context, inv room.RoomInven
 	if err := r.db.WithContext(ctx).Create(&model).Error; err != nil {
 		return room.RoomInventory{}, err
 	}
+
 	return room.RoomInventory{
 		ID:              model.ID,
 		RoomID:          model.RoomID,
@@ -168,6 +176,7 @@ func (r *RoomRepository) CreateInventory(ctx context.Context, inv room.RoomInven
 
 func (r *RoomRepository) listRoomAmenities(ctx context.Context, roomID string) ([]room.RoomAmenity, error) {
 	var models []RoomAmenityModel
+
 	err := r.db.WithContext(ctx).
 		Table("room_amenities AS ra").
 		Select("ra.*").
@@ -177,6 +186,7 @@ func (r *RoomRepository) listRoomAmenities(ctx context.Context, roomID string) (
 	if err != nil {
 		return nil, err
 	}
+
 	result := make([]room.RoomAmenity, len(models))
 	for i := range models {
 		result[i] = room.RoomAmenity{
@@ -189,6 +199,7 @@ func (r *RoomRepository) listRoomAmenities(ctx context.Context, roomID string) (
 			UpdatedAt:   models[i].UpdatedAt,
 		}
 	}
+
 	return result, nil
 }
 
@@ -197,10 +208,12 @@ func toDomainRoom(model RoomModel) room.Room {
 	for i := range model.Images {
 		images[i] = room.RoomImage{ID: model.Images[i].ID, RoomID: model.Images[i].RoomID, URL: model.Images[i].URL, IsCover: model.Images[i].IsCover}
 	}
+
 	bed := json.RawMessage(model.BedOptions)
 	if len(bed) == 0 {
 		bed = json.RawMessage("[]")
 	}
+
 	return room.Room{
 		ID:           model.ID,
 		HotelID:      model.HotelID,
@@ -223,6 +236,7 @@ func emptyJSONIfNil(value []byte) []byte {
 	if len(value) == 0 {
 		return []byte("[]")
 	}
+
 	return value
 }
 
@@ -231,6 +245,7 @@ func createRoomAmenityMaps(tx *gorm.DB, roomID string, amenityIDs []string) erro
 	if len(unique) == 0 {
 		return nil
 	}
+
 	maps := make([]RoomAmenityMapModel, len(unique))
 	for i := range unique {
 		maps[i] = RoomAmenityMapModel{
@@ -238,22 +253,28 @@ func createRoomAmenityMaps(tx *gorm.DB, roomID string, amenityIDs []string) erro
 			AmenityID: unique[i],
 		}
 	}
+
 	return tx.Create(&maps).Error
 }
 
 func uniqueTrimmedStrings(values []string) []string {
 	seen := make(map[string]struct{}, len(values))
 	result := make([]string, 0, len(values))
+
 	for i := range values {
 		v := strings.TrimSpace(values[i])
 		if v == "" {
 			continue
 		}
+
 		if _, ok := seen[v]; ok {
 			continue
 		}
+
 		seen[v] = struct{}{}
+
 		result = append(result, v)
 	}
+
 	return result
 }

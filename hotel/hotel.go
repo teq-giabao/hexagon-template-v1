@@ -1,9 +1,10 @@
 package hotel
 
 import (
-	"hexagon/errs"
 	"strings"
 	"time"
+
+	"hexagon/errs"
 )
 
 var (
@@ -58,6 +59,7 @@ func ValidateID(id string) error {
 	if strings.TrimSpace(id) == "" {
 		return ErrHotelIDRequired
 	}
+
 	return nil
 }
 
@@ -65,20 +67,25 @@ func (h Hotel) ValidateForCreate() error {
 	if strings.TrimSpace(h.Name) == "" {
 		return ErrNameRequired
 	}
+
 	if strings.TrimSpace(h.Address) == "" {
 		return ErrAddressRequired
 	}
+
 	if strings.TrimSpace(h.City) == "" {
 		return ErrCityRequired
 	}
+
 	if h.Rating < 0 || h.Rating > 5 {
 		return ErrRatingInvalid
 	}
+
 	for i := range h.PaymentOptions {
 		if !h.PaymentOptions[i].PaymentOption.IsValid() {
 			return ErrPaymentOption
 		}
 	}
+
 	return nil
 }
 

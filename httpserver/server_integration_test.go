@@ -2,10 +2,11 @@ package httpserver_test
 
 import (
 	"context"
-	"hexagon/httpserver"
-	"hexagon/postgres"
 	"testing"
 	"time"
+
+	"hexagon/httpserver"
+	"hexagon/postgres"
 
 	"github.com/docker/go-connections/nat"
 	migrate "github.com/rubenv/sql-migrate"
@@ -27,6 +28,7 @@ func MustCreateServer(t testing.TB, db *gorm.DB) *httpserver.Server {
 // setupTestDatabase creates a new testcontainer PostgreSQL database and returns a GORM DB connection
 func MustCreateTestDatabase(t testing.TB) *gorm.DB {
 	t.Helper()
+
 	ctx := context.Background()
 	dbName, dbUser, dbPass := "test_contact", "test", "testpass"
 	postgre, err := pgcontainer.RunContainer(ctx,
@@ -60,17 +62,20 @@ func MustCreateTestDatabase(t testing.TB) *gorm.DB {
 
 func extractHostAndPort(t testing.TB, ctx context.Context, postgre *pgcontainer.PostgresContainer) (string, nat.Port) {
 	t.Helper()
+
 	host, err := postgre.Host(ctx)
 	assert.NoError(t, err, "failed to get container host")
 
 	port, err := postgre.MappedPort(ctx, "5432")
 	assert.NoError(t, err, "failed to get mapped port")
+
 	return host, port
 }
 
 // migrateTestDatabase runs all migration files against the test database
 func MigrateTestDatabase(t testing.TB, db *gorm.DB, migrationPath string) {
 	t.Helper()
+
 	migrations := &migrate.FileMigrationSource{
 		Dir: migrationPath,
 	}
