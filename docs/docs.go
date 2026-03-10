@@ -449,6 +449,380 @@ const docTemplate = `{
                 }
             }
         },
+        "/api/hotels": {
+            "get": {
+                "description": "Get all hotels",
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "hotels"
+                ],
+                "summary": "List Hotels",
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "$ref": "#/definitions/httpserver.APISuccessResponse"
+                        }
+                    }
+                }
+            },
+            "post": {
+                "description": "Create a new hotel. ` + "`" + `rating` + "`" + ` is initialized by system (default 0), and ` + "`" + `defaultChildMaxAge` + "`" + ` defaults to 11 when omitted.",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "hotels"
+                ],
+                "summary": "Create Hotel",
+                "parameters": [
+                    {
+                        "description": "Hotel payload",
+                        "name": "payload",
+                        "in": "body",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/definitions/httpserver.AddHotelRequest"
+                        }
+                    }
+                ],
+                "responses": {
+                    "201": {
+                        "description": "Created",
+                        "schema": {
+                            "$ref": "#/definitions/httpserver.APISuccessResponse"
+                        }
+                    },
+                    "400": {
+                        "description": "Bad Request",
+                        "schema": {
+                            "$ref": "#/definitions/httpserver.APIErrorResponse"
+                        }
+                    }
+                }
+            }
+        },
+        "/api/hotels/upload-images": {
+            "post": {
+                "description": "Upload images to S3 using multipart/form-data field ` + "`" + `images` + "`" + `. To upload multiple files, send repeated ` + "`" + `images` + "`" + ` fields. Swagger 2 UI can only pick one file at a time for this endpoint.",
+                "consumes": [
+                    "multipart/form-data"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "hotels"
+                ],
+                "summary": "Upload Hotel Images",
+                "parameters": [
+                    {
+                        "type": "array",
+                        "items": {
+                            "type": "file"
+                        },
+                        "collectionFormat": "csv",
+                        "description": "Image file. Repeat this field to upload multiple files (e.g. -F \\",
+                        "name": "images",
+                        "in": "formData",
+                        "required": true
+                    }
+                ],
+                "responses": {
+                    "201": {
+                        "description": "Created",
+                        "schema": {
+                            "$ref": "#/definitions/httpserver.APISuccessResponse"
+                        }
+                    },
+                    "400": {
+                        "description": "Bad Request",
+                        "schema": {
+                            "$ref": "#/definitions/httpserver.APIErrorResponse"
+                        }
+                    },
+                    "500": {
+                        "description": "Internal Server Error",
+                        "schema": {
+                            "$ref": "#/definitions/httpserver.APIErrorResponse"
+                        }
+                    },
+                    "501": {
+                        "description": "Not Implemented",
+                        "schema": {
+                            "$ref": "#/definitions/httpserver.APIErrorResponse"
+                        }
+                    }
+                }
+            }
+        },
+        "/api/hotels/{hotel_id}": {
+            "get": {
+                "description": "Get hotel detail by id",
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "hotels"
+                ],
+                "summary": "Get Hotel By ID",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "Hotel ID",
+                        "name": "hotel_id",
+                        "in": "path",
+                        "required": true
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "$ref": "#/definitions/httpserver.APISuccessResponse"
+                        }
+                    },
+                    "400": {
+                        "description": "Bad Request",
+                        "schema": {
+                            "$ref": "#/definitions/httpserver.APIErrorResponse"
+                        }
+                    },
+                    "404": {
+                        "description": "Not Found",
+                        "schema": {
+                            "$ref": "#/definitions/httpserver.APIErrorResponse"
+                        }
+                    }
+                }
+            }
+        },
+        "/api/room-amenities": {
+            "post": {
+                "description": "Create a room amenity in master list.",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "rooms"
+                ],
+                "summary": "Create Room Amenity",
+                "parameters": [
+                    {
+                        "description": "Room amenity payload",
+                        "name": "payload",
+                        "in": "body",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/definitions/httpserver.AddRoomAmenityRequest"
+                        }
+                    }
+                ],
+                "responses": {
+                    "201": {
+                        "description": "Created",
+                        "schema": {
+                            "$ref": "#/definitions/httpserver.APISuccessResponse"
+                        }
+                    },
+                    "400": {
+                        "description": "Bad Request",
+                        "schema": {
+                            "$ref": "#/definitions/httpserver.APIErrorResponse"
+                        }
+                    },
+                    "409": {
+                        "description": "Conflict",
+                        "schema": {
+                            "$ref": "#/definitions/httpserver.APIErrorResponse"
+                        }
+                    },
+                    "500": {
+                        "description": "Internal Server Error",
+                        "schema": {
+                            "$ref": "#/definitions/httpserver.APIErrorResponse"
+                        }
+                    }
+                }
+            }
+        },
+        "/api/rooms": {
+            "post": {
+                "description": "Create a room type with images and optional amenityIds mapped in the same transaction.",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "rooms"
+                ],
+                "summary": "Create Room",
+                "parameters": [
+                    {
+                        "description": "Room payload",
+                        "name": "payload",
+                        "in": "body",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/definitions/httpserver.AddRoomRequest"
+                        }
+                    }
+                ],
+                "responses": {
+                    "201": {
+                        "description": "Created",
+                        "schema": {
+                            "$ref": "#/definitions/httpserver.APISuccessResponse"
+                        }
+                    },
+                    "400": {
+                        "description": "Bad Request",
+                        "schema": {
+                            "$ref": "#/definitions/httpserver.APIErrorResponse"
+                        }
+                    },
+                    "404": {
+                        "description": "Not Found",
+                        "schema": {
+                            "$ref": "#/definitions/httpserver.APIErrorResponse"
+                        }
+                    },
+                    "409": {
+                        "description": "Conflict",
+                        "schema": {
+                            "$ref": "#/definitions/httpserver.APIErrorResponse"
+                        }
+                    },
+                    "500": {
+                        "description": "Internal Server Error",
+                        "schema": {
+                            "$ref": "#/definitions/httpserver.APIErrorResponse"
+                        }
+                    }
+                }
+            }
+        },
+        "/api/rooms/{room_id}/inventories": {
+            "post": {
+                "description": "Create inventory for a room on a specific date.",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "rooms"
+                ],
+                "summary": "Create Room Inventory",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "Room ID",
+                        "name": "room_id",
+                        "in": "path",
+                        "required": true
+                    },
+                    {
+                        "description": "Room inventory payload",
+                        "name": "payload",
+                        "in": "body",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/definitions/httpserver.AddRoomInventoryRequest"
+                        }
+                    }
+                ],
+                "responses": {
+                    "201": {
+                        "description": "Created",
+                        "schema": {
+                            "$ref": "#/definitions/httpserver.APISuccessResponse"
+                        }
+                    },
+                    "400": {
+                        "description": "Bad Request",
+                        "schema": {
+                            "$ref": "#/definitions/httpserver.APIErrorResponse"
+                        }
+                    },
+                    "404": {
+                        "description": "Not Found",
+                        "schema": {
+                            "$ref": "#/definitions/httpserver.APIErrorResponse"
+                        }
+                    },
+                    "409": {
+                        "description": "Conflict",
+                        "schema": {
+                            "$ref": "#/definitions/httpserver.APIErrorResponse"
+                        }
+                    },
+                    "500": {
+                        "description": "Internal Server Error",
+                        "schema": {
+                            "$ref": "#/definitions/httpserver.APIErrorResponse"
+                        }
+                    }
+                }
+            }
+        },
+        "/api/search/hotels": {
+            "post": {
+                "description": "Search hotels by name/location, date range, occupancy, and filters. Returns hotels that can satisfy requested room count.",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "search"
+                ],
+                "summary": "Search Hotels",
+                "parameters": [
+                    {
+                        "description": "Hotel search criteria",
+                        "name": "payload",
+                        "in": "body",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/definitions/httpserver.SearchHotelsRequest"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "$ref": "#/definitions/httpserver.APISuccessResponse"
+                        }
+                    },
+                    "400": {
+                        "description": "Bad Request",
+                        "schema": {
+                            "$ref": "#/definitions/httpserver.APIErrorResponse"
+                        }
+                    },
+                    "500": {
+                        "description": "Internal Server Error",
+                        "schema": {
+                            "$ref": "#/definitions/httpserver.APIErrorResponse"
+                        }
+                    }
+                }
+            }
+        },
         "/api/users": {
             "get": {
                 "description": "Get all users",
@@ -825,6 +1199,188 @@ const docTemplate = `{
                 "result": {}
             }
         },
+        "httpserver.AddHotelRequest": {
+            "type": "object",
+            "required": [
+                "address",
+                "checkInTime",
+                "checkOutTime",
+                "city",
+                "name"
+            ],
+            "properties": {
+                "address": {
+                    "type": "string",
+                    "maxLength": 500
+                },
+                "checkInTime": {
+                    "type": "string"
+                },
+                "checkOutTime": {
+                    "type": "string"
+                },
+                "city": {
+                    "type": "string",
+                    "maxLength": 255
+                },
+                "defaultChildMaxAge": {
+                    "type": "integer",
+                    "maximum": 17,
+                    "minimum": 0
+                },
+                "description": {
+                    "type": "string",
+                    "maxLength": 2000
+                },
+                "images": {
+                    "type": "array",
+                    "items": {
+                        "$ref": "#/definitions/httpserver.HotelImageRequest"
+                    }
+                },
+                "name": {
+                    "type": "string",
+                    "maxLength": 255
+                },
+                "paymentOptions": {
+                    "type": "array",
+                    "items": {
+                        "$ref": "#/definitions/httpserver.HotelPaymentOptionRequest"
+                    }
+                }
+            }
+        },
+        "httpserver.AddRoomAmenityRequest": {
+            "type": "object",
+            "required": [
+                "code",
+                "name"
+            ],
+            "properties": {
+                "code": {
+                    "type": "string",
+                    "maxLength": 100
+                },
+                "description": {
+                    "type": "string",
+                    "maxLength": 2000
+                },
+                "icon": {
+                    "type": "string",
+                    "maxLength": 255
+                },
+                "name": {
+                    "type": "string",
+                    "maxLength": 255
+                }
+            }
+        },
+        "httpserver.AddRoomInventoryRequest": {
+            "type": "object",
+            "required": [
+                "date"
+            ],
+            "properties": {
+                "bookedInventory": {
+                    "type": "integer",
+                    "minimum": 0
+                },
+                "date": {
+                    "type": "string"
+                },
+                "heldInventory": {
+                    "type": "integer",
+                    "minimum": 0
+                },
+                "totalInventory": {
+                    "type": "integer",
+                    "minimum": 0
+                }
+            }
+        },
+        "httpserver.AddRoomRequest": {
+            "type": "object",
+            "required": [
+                "amenityIds",
+                "basePrice",
+                "hotelId",
+                "images",
+                "maxAdult",
+                "maxOccupancy",
+                "name"
+            ],
+            "properties": {
+                "amenityIds": {
+                    "type": "array",
+                    "items": {
+                        "type": "string"
+                    },
+                    "example": [
+                        "550e8400-e29b-41d4-a716-446655440000",
+                        "660e8400-e29b-41d4-a716-446655440001"
+                    ]
+                },
+                "basePrice": {
+                    "type": "number",
+                    "example": 1200000
+                },
+                "bedOptions": {
+                    "type": "string",
+                    "example": "{\"beds\":[{\"type\":\"queen\",\"count\":2}]}"
+                },
+                "description": {
+                    "type": "string",
+                    "maxLength": 2000,
+                    "example": "Spacious room with city view and balcony"
+                },
+                "hotelId": {
+                    "type": "string",
+                    "example": "6d3f8c67-f3f4-4e8f-8c89-c5ff3f2c1244"
+                },
+                "images": {
+                    "type": "array",
+                    "minItems": 1,
+                    "items": {
+                        "$ref": "#/definitions/httpserver.RoomImageRequest"
+                    }
+                },
+                "maxAdult": {
+                    "type": "integer",
+                    "example": 2
+                },
+                "maxChild": {
+                    "type": "integer",
+                    "minimum": 0,
+                    "example": 1
+                },
+                "maxOccupancy": {
+                    "type": "integer",
+                    "example": 3
+                },
+                "name": {
+                    "type": "string",
+                    "maxLength": 255,
+                    "example": "Deluxe Twin Room"
+                },
+                "sizeSqm": {
+                    "type": "integer",
+                    "minimum": 0,
+                    "example": 35
+                },
+                "status": {
+                    "enum": [
+                        "active",
+                        "inactive"
+                    ],
+                    "allOf": [
+                        {
+                            "$ref": "#/definitions/room.RoomStatus"
+                        }
+                    ],
+                    "example": "active"
+                }
+            }
+        },
         "httpserver.AddUserRequest": {
             "type": "object",
             "required": [
@@ -875,6 +1431,40 @@ const docTemplate = `{
                 "email": {
                     "type": "string",
                     "maxLength": 255
+                }
+            }
+        },
+        "httpserver.HotelImageRequest": {
+            "type": "object",
+            "required": [
+                "url"
+            ],
+            "properties": {
+                "isCover": {
+                    "type": "boolean"
+                },
+                "url": {
+                    "type": "string",
+                    "maxLength": 1000
+                }
+            }
+        },
+        "httpserver.HotelPaymentOptionRequest": {
+            "type": "object",
+            "required": [
+                "paymentOption"
+            ],
+            "properties": {
+                "enabled": {
+                    "type": "boolean"
+                },
+                "paymentOption": {
+                    "type": "string",
+                    "enum": [
+                        "immediate",
+                        "pay_at_hotel",
+                        "deferred"
+                    ]
                 }
             }
         },
@@ -957,6 +1547,87 @@ const docTemplate = `{
                 }
             }
         },
+        "httpserver.RoomImageRequest": {
+            "type": "object",
+            "required": [
+                "url"
+            ],
+            "properties": {
+                "isCover": {
+                    "type": "boolean",
+                    "example": true
+                },
+                "url": {
+                    "type": "string",
+                    "maxLength": 1000,
+                    "example": "https://cdn.example.com/rooms/deluxe-1.jpg"
+                }
+            }
+        },
+        "httpserver.SearchHotelsRequest": {
+            "type": "object",
+            "required": [
+                "adultCount",
+                "amenityIds",
+                "checkInAt",
+                "checkOutAt",
+                "query",
+                "roomCount"
+            ],
+            "properties": {
+                "adultCount": {
+                    "type": "integer",
+                    "example": 3
+                },
+                "amenityIds": {
+                    "type": "array",
+                    "items": {
+                        "type": "string"
+                    }
+                },
+                "checkInAt": {
+                    "type": "string",
+                    "example": "2026-04-01"
+                },
+                "checkOutAt": {
+                    "type": "string",
+                    "example": "2026-04-03"
+                },
+                "childrenAges": {
+                    "type": "array",
+                    "items": {
+                        "type": "integer"
+                    },
+                    "example": [
+                        5
+                    ]
+                },
+                "paymentOptions": {
+                    "type": "array",
+                    "items": {
+                        "type": "string"
+                    },
+                    "example": [
+                        "immediate",
+                        "pay_at_hotel"
+                    ]
+                },
+                "query": {
+                    "type": "string",
+                    "example": "ha noi"
+                },
+                "ratingMin": {
+                    "type": "number",
+                    "maximum": 5,
+                    "minimum": 0,
+                    "example": 4
+                },
+                "roomCount": {
+                    "type": "integer",
+                    "example": 2
+                }
+            }
+        },
         "httpserver.UpdateProfileRequest": {
             "type": "object",
             "required": [
@@ -1001,6 +1672,17 @@ const docTemplate = `{
                     "type": "string"
                 }
             }
+        },
+        "room.RoomStatus": {
+            "type": "string",
+            "enum": [
+                "active",
+                "inactive"
+            ],
+            "x-enum-varnames": [
+                "RoomStatusActive",
+                "RoomStatusInactive"
+            ]
         }
     },
     "securityDefinitions": {

@@ -2,14 +2,19 @@ package httpserver
 
 import (
 	"context"
-	"hexagon/auth"
-	"hexagon/errs"
-	"hexagon/pkg/config"
-	"hexagon/user"
 	"net/http"
 
+	"hexagon/auth"
+	"hexagon/errs"
+	"hexagon/hotel"
+	"hexagon/pkg/config"
+	"hexagon/room"
+	"hexagon/search"
+	"hexagon/upload"
+	"hexagon/user"
+
 	sentryecho "github.com/getsentry/sentry-go/echo"
-	"github.com/labstack/echo-jwt/v4"
+	echojwt "github.com/labstack/echo-jwt/v4"
 	"github.com/labstack/echo/v4"
 	"github.com/labstack/echo/v4/middleware"
 )
@@ -28,7 +33,17 @@ type Server struct {
 
 	AuthService auth.Service
 
+	HotelService hotel.Service
+
+	RoomService room.Service
+
+	SearchService search.Service
+
+	UploadService upload.Service
+
 	JWTSecret string
+
+	Config *config.Config
 }
 
 func Default(cfg *config.Config) *Server {
@@ -37,10 +52,11 @@ func Default(cfg *config.Config) *Server {
 		Addr:         ":8080",
 		AllowOrigins: []string{"*"},
 		JWTSecret:    cfg.Auth.JWTSecret,
+		Config:       cfg,
 	}
 	s.Router.Validator = NewRequestValidator()
 
-	s.Router.HTTPErrorHandler = customHTTPErrorHandler
+	s.Router.HTTPErrorHandler = s.customHTTPErrorHandler
 	s.RegisterGlobalMiddlewares()
 	api := s.Router.Group("/api")
 
@@ -59,6 +75,10 @@ func Default(cfg *config.Config) *Server {
 	s.RegisterSwaggerRoutes()
 	s.RegisterUserRoutes()
 	s.RegisterAuthRoutes()
+	s.RegisterHotelRoutes()
+	s.RegisterRoomRoutes()
+	s.RegisterSearchRoutes()
+
 	return &s
 }
 
@@ -87,7 +107,7 @@ func (s *Server) Shutdown(ctx context.Context) error {
 }
 
 // customHTTPErrorHandler maps application errors to appropriate HTTP status codes
-func customHTTPErrorHandler(err error, c echo.Context) {
+func (s *Server) customHTTPErrorHandler(err error, c echo.Context) {
 	code := http.StatusInternalServerError
 	message := "Internal server error"
 	info := err.Error()
@@ -122,6 +142,10 @@ func customHTTPErrorHandler(err error, c echo.Context) {
 
 	// Don't write response if already committed
 	if !c.Response().Committed {
+		if s.Config.IsProduction() {
+			info = ""
+		}
+
 		err = c.JSON(code, APIErrorResponse{
 			Code:    defaultHTTPStatusCodeMapper.Code(code),
 			Message: message,

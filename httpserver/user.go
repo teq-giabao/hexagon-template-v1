@@ -28,17 +28,18 @@ func (s *Server) handleAddUser(c echo.Context) error {
 	var req AddUserRequest
 
 	if err := c.Bind(&req); err != nil {
-		return respondError(c, 400, "invalid request body", err.Error())
+		return s.respondBadRequest(c, "invalid request body", err.Error())
 	}
+
 	if err := c.Validate(&req); err != nil {
-		return respondError(c, 400, "invalid request body", err.Error())
+		return s.respondBadRequest(c, "invalid request body", err.Error())
 	}
 
 	if err := s.UserService.AddUser(c.Request().Context(), req.ToUser()); err != nil {
 		return err
 	}
 
-	return respondCreated(c, map[string]any{})
+	return s.respondCreated(c, map[string]any{})
 }
 
 // handleListUsers godoc
@@ -54,7 +55,7 @@ func (s *Server) handleListUsers(c echo.Context) error {
 		return err
 	}
 
-	return respondOK(c, APIDataResult{Data: toUserResponses(users)})
+	return s.respondOK(c, APIDataResult{Data: toUserResponses(users)})
 }
 
 // handleGetUserByID godoc
@@ -69,11 +70,13 @@ func (s *Server) handleListUsers(c echo.Context) error {
 // @Router /api/users/{id} [get]
 func (s *Server) handleGetUserByID(c echo.Context) error {
 	id := c.Param("id")
+
 	u, err := s.UserService.GetUserByID(c.Request().Context(), id)
 	if err != nil {
 		return err
 	}
-	return respondOK(c, toUserResponse(u))
+
+	return s.respondOK(c, toUserResponse(u))
 }
 
 // handleGetUserByEmail godoc
@@ -88,11 +91,13 @@ func (s *Server) handleGetUserByID(c echo.Context) error {
 // @Router /api/users/by-email [get]
 func (s *Server) handleGetUserByEmail(c echo.Context) error {
 	email := c.QueryParam("email")
+
 	u, err := s.UserService.GetUserByEmail(c.Request().Context(), email)
 	if err != nil {
 		return err
 	}
-	return respondOK(c, toUserResponse(u))
+
+	return s.respondOK(c, toUserResponse(u))
 }
 
 // handleUpdateProfile godoc
@@ -109,18 +114,22 @@ func (s *Server) handleGetUserByEmail(c echo.Context) error {
 // @Router /api/users/{id}/profile [patch]
 func (s *Server) handleUpdateProfile(c echo.Context) error {
 	id := c.Param("id")
+
 	var req UpdateProfileRequest
 	if err := c.Bind(&req); err != nil {
-		return respondError(c, 400, "invalid request body", err.Error())
+		return s.respondBadRequest(c, "invalid request body", err.Error())
 	}
+
 	if err := c.Validate(&req); err != nil {
-		return respondError(c, 400, "invalid request body", err.Error())
+		return s.respondBadRequest(c, "invalid request body", err.Error())
 	}
+
 	u, err := s.UserService.UpdateProfile(c.Request().Context(), id, req.Name, req.Phone)
 	if err != nil {
 		return err
 	}
-	return respondOK(c, toUserResponse(u))
+
+	return s.respondOK(c, toUserResponse(u))
 }
 
 // handleChangePassword godoc
@@ -138,17 +147,21 @@ func (s *Server) handleUpdateProfile(c echo.Context) error {
 // @Router /api/users/{id}/password [patch]
 func (s *Server) handleChangePassword(c echo.Context) error {
 	id := c.Param("id")
+
 	var req ChangePasswordRequest
 	if err := c.Bind(&req); err != nil {
-		return respondError(c, 400, "invalid request body", err.Error())
+		return s.respondBadRequest(c, "invalid request body", err.Error())
 	}
+
 	if err := c.Validate(&req); err != nil {
-		return respondError(c, 400, "invalid request body", err.Error())
+		return s.respondBadRequest(c, "invalid request body", err.Error())
 	}
+
 	if err := s.UserService.ChangePassword(c.Request().Context(), id, req.CurrentPassword, req.NewPassword); err != nil {
 		return err
 	}
-	return respondOK(c, map[string]any{})
+
+	return s.respondOK(c, map[string]any{})
 }
 
 // handleDeactivateUser godoc
@@ -166,5 +179,6 @@ func (s *Server) handleDeactivateUser(c echo.Context) error {
 	if err := s.UserService.DeactivateUser(c.Request().Context(), id); err != nil {
 		return err
 	}
-	return respondOK(c, map[string]any{})
+
+	return s.respondOK(c, map[string]any{})
 }

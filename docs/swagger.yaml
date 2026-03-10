@@ -17,6 +17,138 @@ definitions:
         type: string
       result: {}
     type: object
+  httpserver.AddHotelRequest:
+    properties:
+      address:
+        maxLength: 500
+        type: string
+      checkInTime:
+        type: string
+      checkOutTime:
+        type: string
+      city:
+        maxLength: 255
+        type: string
+      defaultChildMaxAge:
+        maximum: 17
+        minimum: 0
+        type: integer
+      description:
+        maxLength: 2000
+        type: string
+      images:
+        items:
+          $ref: '#/definitions/httpserver.HotelImageRequest'
+        type: array
+      name:
+        maxLength: 255
+        type: string
+      paymentOptions:
+        items:
+          $ref: '#/definitions/httpserver.HotelPaymentOptionRequest'
+        type: array
+    required:
+    - address
+    - checkInTime
+    - checkOutTime
+    - city
+    - name
+    type: object
+  httpserver.AddRoomAmenityRequest:
+    properties:
+      code:
+        maxLength: 100
+        type: string
+      description:
+        maxLength: 2000
+        type: string
+      icon:
+        maxLength: 255
+        type: string
+      name:
+        maxLength: 255
+        type: string
+    required:
+    - code
+    - name
+    type: object
+  httpserver.AddRoomInventoryRequest:
+    properties:
+      bookedInventory:
+        minimum: 0
+        type: integer
+      date:
+        type: string
+      heldInventory:
+        minimum: 0
+        type: integer
+      totalInventory:
+        minimum: 0
+        type: integer
+    required:
+    - date
+    type: object
+  httpserver.AddRoomRequest:
+    properties:
+      amenityIds:
+        example:
+        - 550e8400-e29b-41d4-a716-446655440000
+        - 660e8400-e29b-41d4-a716-446655440001
+        items:
+          type: string
+        type: array
+      basePrice:
+        example: 1200000
+        type: number
+      bedOptions:
+        example: '{"beds":[{"type":"queen","count":2}]}'
+        type: string
+      description:
+        example: Spacious room with city view and balcony
+        maxLength: 2000
+        type: string
+      hotelId:
+        example: 6d3f8c67-f3f4-4e8f-8c89-c5ff3f2c1244
+        type: string
+      images:
+        items:
+          $ref: '#/definitions/httpserver.RoomImageRequest'
+        minItems: 1
+        type: array
+      maxAdult:
+        example: 2
+        type: integer
+      maxChild:
+        example: 1
+        minimum: 0
+        type: integer
+      maxOccupancy:
+        example: 3
+        type: integer
+      name:
+        example: Deluxe Twin Room
+        maxLength: 255
+        type: string
+      sizeSqm:
+        example: 35
+        minimum: 0
+        type: integer
+      status:
+        allOf:
+        - $ref: '#/definitions/room.RoomStatus'
+        enum:
+        - active
+        - inactive
+        example: active
+    required:
+    - amenityIds
+    - basePrice
+    - hotelId
+    - images
+    - maxAdult
+    - maxOccupancy
+    - name
+    type: object
   httpserver.AddUserRequest:
     properties:
       email:
@@ -53,6 +185,29 @@ definitions:
         type: string
     required:
     - email
+    type: object
+  httpserver.HotelImageRequest:
+    properties:
+      isCover:
+        type: boolean
+      url:
+        maxLength: 1000
+        type: string
+    required:
+    - url
+    type: object
+  httpserver.HotelPaymentOptionRequest:
+    properties:
+      enabled:
+        type: boolean
+      paymentOption:
+        enum:
+        - immediate
+        - pay_at_hotel
+        - deferred
+        type: string
+    required:
+    - paymentOption
     type: object
   httpserver.LoginRequest:
     properties:
@@ -108,6 +263,65 @@ definitions:
     - newPassword
     - token
     type: object
+  httpserver.RoomImageRequest:
+    properties:
+      isCover:
+        example: true
+        type: boolean
+      url:
+        example: https://cdn.example.com/rooms/deluxe-1.jpg
+        maxLength: 1000
+        type: string
+    required:
+    - url
+    type: object
+  httpserver.SearchHotelsRequest:
+    properties:
+      adultCount:
+        example: 3
+        type: integer
+      amenityIds:
+        items:
+          type: string
+        type: array
+      checkInAt:
+        example: "2026-04-01"
+        type: string
+      checkOutAt:
+        example: "2026-04-03"
+        type: string
+      childrenAges:
+        example:
+        - 5
+        items:
+          type: integer
+        type: array
+      paymentOptions:
+        example:
+        - immediate
+        - pay_at_hotel
+        items:
+          type: string
+        type: array
+      query:
+        example: ha noi
+        type: string
+      ratingMin:
+        example: 4
+        maximum: 5
+        minimum: 0
+        type: number
+      roomCount:
+        example: 2
+        type: integer
+    required:
+    - adultCount
+    - amenityIds
+    - checkInAt
+    - checkOutAt
+    - query
+    - roomCount
+    type: object
   httpserver.UpdateProfileRequest:
     properties:
       name:
@@ -138,6 +352,14 @@ definitions:
       updatedAt:
         type: string
     type: object
+  room.RoomStatus:
+    enum:
+    - active
+    - inactive
+    type: string
+    x-enum-varnames:
+    - RoomStatusActive
+    - RoomStatusInactive
 host: localhost:8088
 info:
   contact: {}
@@ -428,6 +650,258 @@ paths:
       summary: Reset Password
       tags:
       - auth
+  /api/hotels:
+    get:
+      description: Get all hotels
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/httpserver.APISuccessResponse'
+      summary: List Hotels
+      tags:
+      - hotels
+    post:
+      consumes:
+      - application/json
+      description: Create a new hotel. `rating` is initialized by system (default
+        0), and `defaultChildMaxAge` defaults to 11 when omitted.
+      parameters:
+      - description: Hotel payload
+        in: body
+        name: payload
+        required: true
+        schema:
+          $ref: '#/definitions/httpserver.AddHotelRequest'
+      produces:
+      - application/json
+      responses:
+        "201":
+          description: Created
+          schema:
+            $ref: '#/definitions/httpserver.APISuccessResponse'
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/httpserver.APIErrorResponse'
+      summary: Create Hotel
+      tags:
+      - hotels
+  /api/hotels/{hotel_id}:
+    get:
+      description: Get hotel detail by id
+      parameters:
+      - description: Hotel ID
+        in: path
+        name: hotel_id
+        required: true
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/httpserver.APISuccessResponse'
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/httpserver.APIErrorResponse'
+        "404":
+          description: Not Found
+          schema:
+            $ref: '#/definitions/httpserver.APIErrorResponse'
+      summary: Get Hotel By ID
+      tags:
+      - hotels
+  /api/hotels/upload-images:
+    post:
+      consumes:
+      - multipart/form-data
+      description: Upload images to S3 using multipart/form-data field `images`. To
+        upload multiple files, send repeated `images` fields. Swagger 2 UI can only
+        pick one file at a time for this endpoint.
+      parameters:
+      - collectionFormat: csv
+        description: Image file. Repeat this field to upload multiple files (e.g.
+          -F \
+        in: formData
+        items:
+          type: file
+        name: images
+        required: true
+        type: array
+      produces:
+      - application/json
+      responses:
+        "201":
+          description: Created
+          schema:
+            $ref: '#/definitions/httpserver.APISuccessResponse'
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/httpserver.APIErrorResponse'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/httpserver.APIErrorResponse'
+        "501":
+          description: Not Implemented
+          schema:
+            $ref: '#/definitions/httpserver.APIErrorResponse'
+      summary: Upload Hotel Images
+      tags:
+      - hotels
+  /api/room-amenities:
+    post:
+      consumes:
+      - application/json
+      description: Create a room amenity in master list.
+      parameters:
+      - description: Room amenity payload
+        in: body
+        name: payload
+        required: true
+        schema:
+          $ref: '#/definitions/httpserver.AddRoomAmenityRequest'
+      produces:
+      - application/json
+      responses:
+        "201":
+          description: Created
+          schema:
+            $ref: '#/definitions/httpserver.APISuccessResponse'
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/httpserver.APIErrorResponse'
+        "409":
+          description: Conflict
+          schema:
+            $ref: '#/definitions/httpserver.APIErrorResponse'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/httpserver.APIErrorResponse'
+      summary: Create Room Amenity
+      tags:
+      - rooms
+  /api/rooms:
+    post:
+      consumes:
+      - application/json
+      description: Create a room type with images and optional amenityIds mapped in
+        the same transaction.
+      parameters:
+      - description: Room payload
+        in: body
+        name: payload
+        required: true
+        schema:
+          $ref: '#/definitions/httpserver.AddRoomRequest'
+      produces:
+      - application/json
+      responses:
+        "201":
+          description: Created
+          schema:
+            $ref: '#/definitions/httpserver.APISuccessResponse'
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/httpserver.APIErrorResponse'
+        "404":
+          description: Not Found
+          schema:
+            $ref: '#/definitions/httpserver.APIErrorResponse'
+        "409":
+          description: Conflict
+          schema:
+            $ref: '#/definitions/httpserver.APIErrorResponse'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/httpserver.APIErrorResponse'
+      summary: Create Room
+      tags:
+      - rooms
+  /api/rooms/{room_id}/inventories:
+    post:
+      consumes:
+      - application/json
+      description: Create inventory for a room on a specific date.
+      parameters:
+      - description: Room ID
+        in: path
+        name: room_id
+        required: true
+        type: string
+      - description: Room inventory payload
+        in: body
+        name: payload
+        required: true
+        schema:
+          $ref: '#/definitions/httpserver.AddRoomInventoryRequest'
+      produces:
+      - application/json
+      responses:
+        "201":
+          description: Created
+          schema:
+            $ref: '#/definitions/httpserver.APISuccessResponse'
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/httpserver.APIErrorResponse'
+        "404":
+          description: Not Found
+          schema:
+            $ref: '#/definitions/httpserver.APIErrorResponse'
+        "409":
+          description: Conflict
+          schema:
+            $ref: '#/definitions/httpserver.APIErrorResponse'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/httpserver.APIErrorResponse'
+      summary: Create Room Inventory
+      tags:
+      - rooms
+  /api/search/hotels:
+    post:
+      consumes:
+      - application/json
+      description: Search hotels by name/location, date range, occupancy, and filters.
+        Returns hotels that can satisfy requested room count.
+      parameters:
+      - description: Hotel search criteria
+        in: body
+        name: payload
+        required: true
+        schema:
+          $ref: '#/definitions/httpserver.SearchHotelsRequest'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/httpserver.APISuccessResponse'
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/httpserver.APIErrorResponse'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/httpserver.APIErrorResponse'
+      summary: Search Hotels
+      tags:
+      - search
   /api/users:
     get:
       description: Get all users

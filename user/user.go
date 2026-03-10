@@ -1,12 +1,13 @@
 package user
 
 import (
-	"hexagon/errs"
 	"net/mail"
 	"regexp"
 	"strings"
 	"time"
 	"unicode"
+
+	"hexagon/errs"
 )
 
 var (
@@ -81,21 +82,27 @@ func (u User) Validate() error {
 	if err := validateName(name); err != nil {
 		return err
 	}
+
 	if err := validateEmail(email); err != nil {
 		return err
 	}
+
 	if err := validatePhone(phone); err != nil {
 		return err
 	}
+
 	if err := validatePassword(password); err != nil {
 		return err
 	}
+
 	if err := u.validateRoleAndStatus(); err != nil {
 		return err
 	}
+
 	if err := u.validateCounters(); err != nil {
 		return err
 	}
+
 	if err := u.validateLockAndFailedLoginState(time.Now().UTC()); err != nil {
 		return err
 	}
@@ -107,9 +114,11 @@ func (u User) validateRoleAndStatus() error {
 	if u.Role != "" && !u.Role.IsValid() {
 		return ErrInvalidRole
 	}
+
 	if u.Status != "" && !u.Status.IsValid() {
 		return ErrInvalidStatus
 	}
+
 	return nil
 }
 
@@ -117,6 +126,7 @@ func (u User) validateCounters() error {
 	if u.FailedLoginAttempts < 0 || u.LockEscalationLevel < 0 {
 		return ErrInvalidCounter
 	}
+
 	return nil
 }
 
@@ -124,15 +134,19 @@ func (u User) validateLockAndFailedLoginState(now time.Time) error {
 	if u.Status == UserStatusLocked && (u.LockUntil == nil || !u.LockUntil.After(now)) {
 		return ErrInvalidLockState
 	}
+
 	if u.Status != UserStatusLocked && u.LockUntil != nil {
 		return ErrInvalidLockState
 	}
+
 	if u.LastFailedLoginAt != nil && u.LastFailedLoginAt.After(now) {
 		return ErrInvalidFailedLoginState
 	}
+
 	if u.FailedLoginAttempts > 0 && u.LastFailedLoginAt == nil {
 		return ErrInvalidFailedLoginState
 	}
+
 	return nil
 }
 
@@ -150,6 +164,7 @@ func containsUppercase(value string) bool {
 			return true
 		}
 	}
+
 	return false
 }
 
@@ -159,6 +174,7 @@ func containsLowercase(value string) bool {
 			return true
 		}
 	}
+
 	return false
 }
 
@@ -168,6 +184,7 @@ func containsNumber(value string) bool {
 			return true
 		}
 	}
+
 	return false
 }
 
@@ -177,6 +194,7 @@ func containsSpecialChar(value string) bool {
 			return true
 		}
 	}
+
 	return false
 }
 
@@ -184,9 +202,11 @@ func validateName(name string) error {
 	if name == "" {
 		return ErrNameRequired
 	}
+
 	if len(name) > maxNameLength {
 		return ErrNameTooLong
 	}
+
 	return nil
 }
 
@@ -194,9 +214,11 @@ func validateEmail(email string) error {
 	if email == "" {
 		return ErrEmailRequired
 	}
+
 	if _, err := mail.ParseAddress(email); err != nil {
 		return ErrEmailInvalidFormat
 	}
+
 	return nil
 }
 
@@ -204,24 +226,31 @@ func validatePassword(password string) error {
 	if password == "" {
 		return ErrPasswordRequired
 	}
+
 	if len(password) < minPasswordLengthGreaterThanEight {
 		return ErrPasswordTooShort
 	}
+
 	if len(password) > maxPasswordLength {
 		return ErrPasswordTooLong
 	}
+
 	if !containsUppercase(password) {
 		return ErrPasswordMustContainUppercase
 	}
+
 	if !containsLowercase(password) {
 		return ErrPasswordMustContainLowercase
 	}
+
 	if !containsNumber(password) {
 		return ErrPasswordMustContainNumber
 	}
+
 	if !containsSpecialChar(password) {
 		return ErrPasswordMustContainSpecialChar
 	}
+
 	return nil
 }
 
@@ -229,8 +258,10 @@ func validatePhone(phone string) error {
 	if phone == "" {
 		return nil
 	}
+
 	if !phoneRegex.MatchString(phone) {
 		return ErrPhoneInvalidFormat
 	}
+
 	return nil
 }

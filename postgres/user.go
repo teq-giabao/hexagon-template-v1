@@ -3,9 +3,10 @@ package postgres
 import (
 	"context"
 	"errors"
-	"hexagon/user"
 	"strings"
 	"time"
+
+	"hexagon/user"
 
 	"github.com/lib/pq"
 	"gorm.io/gorm"
@@ -47,6 +48,7 @@ func (r *UserRepository) GetByEmail(ctx context.Context, email string) (user.Use
 		if errors.Is(err, gorm.ErrRecordNotFound) {
 			return user.User{}, user.ErrUserNotFound
 		}
+
 		return user.User{}, err
 	}
 
@@ -62,6 +64,7 @@ func (r *UserRepository) GetByID(ctx context.Context, id string) (user.User, err
 		if errors.Is(err, gorm.ErrRecordNotFound) {
 			return user.User{}, user.ErrUserNotFound
 		}
+
 		return user.User{}, err
 	}
 
@@ -80,8 +83,10 @@ func (r *UserRepository) CreateUser(ctx context.Context, u user.User) error {
 		if isDuplicateEmailError(err) {
 			return user.ErrEmailAlreadyExists
 		}
+
 		return err
 	}
+
 	return nil
 }
 
@@ -89,22 +94,27 @@ func (r *UserRepository) CreateUser(ctx context.Context, u user.User) error {
 // If fn returns an error, the transaction is rolled back.
 func (r *UserRepository) CreateUserTx(ctx context.Context, u user.User, fn func(created user.User) error) (user.User, error) {
 	var created user.User
+
 	err := r.db.WithContext(ctx).Transaction(func(tx *gorm.DB) error {
 		model := toModelUser(u)
 		if err := tx.Create(&model).Error; err != nil {
 			if isDuplicateEmailError(err) {
 				return user.ErrEmailAlreadyExists
 			}
+
 			return err
 		}
+
 		created = toDomainUser(model)
 		if fn != nil {
 			if err := fn(created); err != nil {
 				return err
 			}
 		}
+
 		return nil
 	})
+
 	return created, err
 }
 
@@ -119,6 +129,7 @@ func (r *UserRepository) AllUsers(ctx context.Context) ([]user.User, error) {
 	for i, model := range models {
 		users[i] = toDomainUser(model)
 	}
+
 	return users, nil
 }
 
@@ -132,9 +143,11 @@ func (r *UserRepository) UpdateProfile(ctx context.Context, id, name, phone stri
 	if result.Error != nil {
 		return user.User{}, result.Error
 	}
+
 	if result.RowsAffected == 0 {
 		return user.User{}, user.ErrUserNotFound
 	}
+
 	return r.GetByID(ctx, id)
 }
 
@@ -147,9 +160,11 @@ func (r *UserRepository) UpdatePasswordHash(ctx context.Context, id, passwordHas
 	if result.Error != nil {
 		return result.Error
 	}
+
 	if result.RowsAffected == 0 {
 		return user.ErrUserNotFound
 	}
+
 	return nil
 }
 
@@ -162,9 +177,11 @@ func (r *UserRepository) UpdateStatus(ctx context.Context, id string, status use
 	if result.Error != nil {
 		return result.Error
 	}
+
 	if result.RowsAffected == 0 {
 		return user.ErrUserNotFound
 	}
+
 	return nil
 }
 
@@ -189,9 +206,11 @@ func (r *UserRepository) UpdateAuthState(
 	if result.Error != nil {
 		return result.Error
 	}
+
 	if result.RowsAffected == 0 {
 		return user.ErrUserNotFound
 	}
+
 	return nil
 }
 
@@ -234,5 +253,6 @@ func isDuplicateEmailError(err error) bool {
 	if errors.As(err, &pqErr) {
 		return pqErr.Code == "23505" && strings.Contains(strings.ToLower(pqErr.Constraint), "email")
 	}
+
 	return false
 }

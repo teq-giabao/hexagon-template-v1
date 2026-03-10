@@ -14,7 +14,7 @@ func (s *Server) RegisterHealthRoutes() {
 // @Success 200 {object} map[string]string
 // @Router /healthcheck [get]
 func (s *Server) healthCheck(c echo.Context) error {
-	return respondOK(c, map[string]string{
+	return s.respondOK(c, map[string]string{
 		"status": "OK",
 	})
 }

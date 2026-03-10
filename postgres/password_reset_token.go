@@ -3,8 +3,9 @@ package postgres
 import (
 	"context"
 	"errors"
-	"hexagon/auth"
 	"time"
+
+	"hexagon/auth"
 
 	"gorm.io/gorm"
 )
@@ -37,11 +38,13 @@ func (r *PasswordResetTokenRepository) Save(ctx context.Context, token auth.Pass
 		ExpiresAt: token.ExpiresAt,
 		UsedAt:    token.UsedAt,
 	}
+
 	return r.db.WithContext(ctx).Create(&model).Error
 }
 
 func (r *PasswordResetTokenRepository) GetActiveByHash(ctx context.Context, tokenHash string) (auth.PasswordResetToken, error) {
 	var model PasswordResetTokenModel
+
 	err := r.db.WithContext(ctx).
 		Where("token_hash = ? AND used_at IS NULL", tokenHash).
 		First(&model).Error
@@ -49,8 +52,10 @@ func (r *PasswordResetTokenRepository) GetActiveByHash(ctx context.Context, toke
 		if errors.Is(err, gorm.ErrRecordNotFound) {
 			return auth.PasswordResetToken{}, errors.New("reset token not found")
 		}
+
 		return auth.PasswordResetToken{}, err
 	}
+
 	return auth.PasswordResetToken{
 		UserID:    model.UserID,
 		TokenHash: model.TokenHash,
@@ -66,8 +71,10 @@ func (r *PasswordResetTokenRepository) MarkUsedByHash(ctx context.Context, token
 	if result.Error != nil {
 		return result.Error
 	}
+
 	if result.RowsAffected == 0 {
 		return errors.New("reset token not found")
 	}
+
 	return nil
 }

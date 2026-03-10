@@ -3,9 +3,10 @@ package postgres
 import (
 	"context"
 	"errors"
-	"hexagon/auth"
 	"strings"
 	"time"
+
+	"hexagon/auth"
 
 	"github.com/lib/pq"
 	"gorm.io/gorm"
@@ -39,6 +40,7 @@ func (r *OAuthProviderAccountRepository) GetUserIDByProvider(
 	providerUserID string,
 ) (string, error) {
 	var model OAuthProviderAccountModel
+
 	err := r.db.WithContext(ctx).
 		Where("provider = ? AND provider_user_id = ?", string(provider), providerUserID).
 		First(&model).Error
@@ -46,8 +48,10 @@ func (r *OAuthProviderAccountRepository) GetUserIDByProvider(
 		if errors.Is(err, gorm.ErrRecordNotFound) {
 			return "", errors.New("oauth account not found")
 		}
+
 		return "", err
 	}
+
 	return model.UserID, nil
 }
 
@@ -72,8 +76,10 @@ func (r *OAuthProviderAccountRepository) Upsert(
 		if isOAuthProviderConflict(err) {
 			return errors.New("oauth provider account conflict")
 		}
+
 		return err
 	}
+
 	return nil
 }
 
@@ -82,5 +88,6 @@ func isOAuthProviderConflict(err error) bool {
 	if errors.As(err, &pqErr) {
 		return pqErr.Code == "23505" && strings.Contains(strings.ToLower(pqErr.Constraint), "oauth_provider_accounts")
 	}
+
 	return false
 }

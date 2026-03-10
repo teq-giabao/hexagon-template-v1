@@ -72,12 +72,14 @@ func (s *Sentry) configScope(scope *sentrygo.Scope) {
 
 func (s *Sentry) getHub() *sentrygo.Hub {
 	currentHub := sentrygo.CurrentHub().Clone()
+
 	if s.context != nil {
 		hub := sentryecho.GetHubFromContext(s.context)
 		if hub != nil {
 			currentHub = hub
 		}
 	}
+
 	return currentHub
 }
 
@@ -171,6 +173,7 @@ func createSentry() *Sentry {
 func WithContext(c echo.Context) *Sentry {
 	sentry := createSentry()
 	sentry.WithContext(c)
+
 	return sentry
 }
 
@@ -178,6 +181,7 @@ func WithContext(c echo.Context) *Sentry {
 func WithExtras(extras map[string]interface{}) *Sentry {
 	sentry := createSentry()
 	sentry.WithExtras(extras)
+
 	return sentry
 }
 
@@ -185,6 +189,7 @@ func WithExtras(extras map[string]interface{}) *Sentry {
 func WithTags(tags map[string]string) *Sentry {
 	sentry := createSentry()
 	sentry.WithTags(tags)
+
 	return sentry
 }
 
@@ -192,6 +197,7 @@ func WithTags(tags map[string]string) *Sentry {
 func WithContextValues(contextValues map[string]sentrygo.Context) *Sentry {
 	sentry := createSentry()
 	sentry.WithContextValues(contextValues)
+
 	return sentry
 }
 

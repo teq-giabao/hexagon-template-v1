@@ -4,9 +4,9 @@ import (
 	"crypto/rand"
 	"encoding/base64"
 	"errors"
-	"hexagon/user"
-
 	"time"
+
+	"hexagon/user"
 
 	"github.com/golang-jwt/jwt"
 )
@@ -35,10 +35,12 @@ func (p *JWTProvider) GetRefreshTTL() time.Duration {
 
 func (p *JWTProvider) GenerateAccessToken(u user.User) (string, error) {
 	now := time.Now().UTC()
+
 	jti, err := generateJTI(24)
 	if err != nil {
 		return "", err
 	}
+
 	claims := jwt.MapClaims{
 		"iss":     p.Issuer,
 		"aud":     p.Audience,
@@ -54,15 +56,18 @@ func (p *JWTProvider) GenerateAccessToken(u user.User) (string, error) {
 	}
 
 	t := jwt.NewWithClaims(jwt.SigningMethodHS256, claims)
+
 	return t.SignedString([]byte(p.Secret))
 }
 
 func (p *JWTProvider) GenerateRefreshToken(u user.User) (string, error) {
 	now := time.Now().UTC()
+
 	jti, err := generateJTI(24)
 	if err != nil {
 		return "", err
 	}
+
 	claims := jwt.MapClaims{
 		"iss":     p.Issuer,
 		"aud":     p.Audience,
@@ -78,6 +83,7 @@ func (p *JWTProvider) GenerateRefreshToken(u user.User) (string, error) {
 	}
 
 	t := jwt.NewWithClaims(jwt.SigningMethodHS256, claims)
+
 	return t.SignedString([]byte(p.Secret))
 }
 
@@ -94,6 +100,7 @@ func (p *JWTProvider) parseTokenByType(token string, expectedType string) (user.
 	if err != nil {
 		return user.User{}, err
 	}
+
 	if err := p.validateTokenClaims(claims, expectedType); err != nil {
 		return user.User{}, err
 	}
@@ -102,6 +109,7 @@ func (p *JWTProvider) parseTokenByType(token string, expectedType string) (user.
 	if err != nil {
 		return user.User{}, err
 	}
+
 	email, err := emailFromClaims(claims)
 	if err != nil {
 		return user.User{}, err
@@ -119,6 +127,7 @@ func (p *JWTProvider) parseTokenClaims(refreshToken string) (jwt.MapClaims, erro
 		if _, ok := t.Method.(*jwt.SigningMethodHMAC); !ok {
 			return nil, errors.New("unexpected signing method")
 		}
+
 		return []byte(p.Secret), nil
 	})
 	if err != nil || !token.Valid {
@@ -129,9 +138,11 @@ func (p *JWTProvider) parseTokenClaims(refreshToken string) (jwt.MapClaims, erro
 	if !ok {
 		return nil, errors.New("invalid token claims")
 	}
+
 	if err := claims.Valid(); err != nil {
 		return nil, errors.New("token expired")
 	}
+
 	return claims, nil
 }
 
@@ -139,15 +150,19 @@ func (p *JWTProvider) validateTokenClaims(claims jwt.MapClaims, expectedType str
 	if claimType, ok := claims["type"].(string); !ok || claimType != expectedType {
 		return errors.New("invalid token type")
 	}
+
 	if iss, ok := claims["iss"].(string); !ok || iss != p.Issuer {
 		return errors.New("invalid token issuer")
 	}
+
 	if aud, ok := claims["aud"].(string); !ok || aud != p.Audience {
 		return errors.New("invalid token audience")
 	}
+
 	if jti, ok := claims["jti"].(string); !ok || jti == "" {
 		return errors.New("invalid token id")
 	}
+
 	return nil
 }
 
@@ -159,9 +174,11 @@ func userIDFromClaims(claims jwt.MapClaims) (string, error) {
 			ok = true
 		}
 	}
+
 	if !ok || userID == "" {
 		return "", errors.New("invalid user id")
 	}
+
 	return userID, nil
 }
 
@@ -170,6 +187,7 @@ func emailFromClaims(claims jwt.MapClaims) (string, error) {
 	if !ok || email == "" {
 		return "", errors.New("invalid email")
 	}
+
 	return email, nil
 }
 
@@ -178,6 +196,7 @@ func roleFromClaims(claims jwt.MapClaims) string {
 	if !ok || role == "" {
 		return string(user.UserRoleUser)
 	}
+
 	return role
 }
 
@@ -185,9 +204,11 @@ func generateJTI(length int) (string, error) {
 	if length <= 0 {
 		return "", errors.New("invalid jti length")
 	}
+
 	buf := make([]byte, length)
 	if _, err := rand.Read(buf); err != nil {
 		return "", err
 	}
+
 	return base64.RawURLEncoding.EncodeToString(buf), nil
 }

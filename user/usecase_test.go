@@ -3,9 +3,10 @@ package user_test
 
 import (
 	"context"
-	"hexagon/user"
 	"testing"
 	"time"
+
+	"hexagon/user"
 
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/mock"
@@ -480,6 +481,7 @@ func TestGetUserByID(t *testing.T) {
 	t.Run("should get user by id", func(t *testing.T) {
 		u := user.User{ID: "u-1", Name: "john", Email: "john@mail.com"}
 		r.On("GetByID", mock.Anything, "u-1").Return(u, nil).Once()
+
 		got, err := uc.GetUserByID(context.Background(), "u-1")
 		assert.NoError(t, err)
 		assert.Equal(t, u, got)
@@ -501,6 +503,7 @@ func TestGetUserByEmail(t *testing.T) {
 	t.Run("should get user by email", func(t *testing.T) {
 		u := user.User{ID: "u-1", Name: "john", Email: "john@mail.com"}
 		r.On("GetByEmail", mock.Anything, "john@mail.com").Return(u, nil).Once()
+
 		got, err := uc.GetUserByEmail(context.Background(), "john@mail.com")
 		assert.NoError(t, err)
 		assert.Equal(t, u, got)
@@ -528,6 +531,7 @@ func TestUpdateProfile(t *testing.T) {
 	t.Run("should update profile", func(t *testing.T) {
 		updated := user.User{ID: "u-1", Name: "John New", Phone: "0999"}
 		r.On("UpdateProfile", mock.Anything, "u-1", "John New", "0999").Return(updated, nil).Once()
+
 		got, err := uc.UpdateProfile(context.Background(), "u-1", "John New", "0999")
 		assert.NoError(t, err)
 		assert.Equal(t, updated, got)
@@ -559,6 +563,7 @@ func TestChangePassword(t *testing.T) {
 		u := user.User{ID: "u-1", PasswordHash: "hashed-current"}
 		r.On("GetByID", mock.Anything, "u-1").Return(u, nil).Once()
 		h.On("Compare", "hashed-current", "Current123!").Return(assert.AnError).Once()
+
 		err := uc.ChangePassword(context.Background(), "u-1", "Current123!", "NewPassword1!")
 		assert.Equal(t, user.ErrCurrentPasswordInvalid, err)
 		r.AssertExpectations(t)
@@ -592,6 +597,7 @@ func TestDeactivateUser(t *testing.T) {
 
 	t.Run("should deactivate user", func(t *testing.T) {
 		r.On("UpdateStatus", mock.Anything, "u-1", user.UserStatusInactive).Return(nil).Once()
+
 		err := uc.DeactivateUser(context.Background(), "u-1")
 		assert.NoError(t, err)
 		r.AssertExpectations(t)

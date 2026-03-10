@@ -3,8 +3,9 @@ package postgres
 import (
 	"context"
 	"errors"
-	"hexagon/auth"
 	"time"
+
+	"hexagon/auth"
 
 	"gorm.io/gorm"
 )
@@ -41,11 +42,13 @@ func (r *RefreshTokenRepository) Save(ctx context.Context, token auth.RefreshTok
 		ExpiresAt: token.ExpiresAt,
 		RevokedAt: token.RevokedAt,
 	}
+
 	return r.db.WithContext(ctx).Create(&model).Error
 }
 
 func (r *RefreshTokenRepository) GetActiveByHash(ctx context.Context, tokenHash string) (auth.RefreshToken, error) {
 	var model RefreshTokenModel
+
 	err := r.db.WithContext(ctx).
 		Where("token_hash = ? AND revoked_at IS NULL", tokenHash).
 		First(&model).Error
@@ -53,8 +56,10 @@ func (r *RefreshTokenRepository) GetActiveByHash(ctx context.Context, tokenHash 
 		if errors.Is(err, gorm.ErrRecordNotFound) {
 			return auth.RefreshToken{}, errors.New("refresh token not found")
 		}
+
 		return auth.RefreshToken{}, err
 	}
+
 	return auth.RefreshToken{
 		UserID:    model.UserID,
 		TokenHash: model.TokenHash,
@@ -72,9 +77,11 @@ func (r *RefreshTokenRepository) RevokeByHash(ctx context.Context, tokenHash str
 	if result.Error != nil {
 		return result.Error
 	}
+
 	if result.RowsAffected == 0 {
 		return errors.New("refresh token not found")
 	}
+
 	return nil
 }
 
@@ -82,5 +89,6 @@ func (r *RefreshTokenRepository) RevokeAllByUserID(ctx context.Context, userID s
 	result := r.db.WithContext(ctx).Model(&RefreshTokenModel{}).
 		Where("user_id = ? AND revoked_at IS NULL", userID).
 		Update("revoked_at", revokedAt)
+
 	return result.Error
 }

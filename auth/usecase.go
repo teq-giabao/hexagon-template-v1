@@ -8,11 +8,12 @@ import (
 	"encoding/base64"
 	"encoding/hex"
 	"errors"
-	"hexagon/user"
 	"net/mail"
 	"net/url"
 	"strings"
 	"time"
+
+	"hexagon/user"
 )
 
 var (
@@ -185,6 +186,7 @@ func NewUsecase(
 	}
 }
 
+// nolint: funlen
 func (uc *Usecase) Register(ctx context.Context, name, email, phone, password string) (TokenPair, error) {
 	existing, err := uc.userRepo.GetByEmail(ctx, strings.TrimSpace(email))
 	if err == nil && strings.TrimSpace(existing.PasswordHash) == "" {
@@ -207,6 +209,7 @@ func (uc *Usecase) Register(ctx context.Context, name, email, phone, password st
 	if err != nil {
 		return TokenPair{}, err
 	}
+
 	newUser.Password = ""
 	newUser.PasswordHash = hashed
 
@@ -214,24 +217,29 @@ func (uc *Usecase) Register(ctx context.Context, name, email, phone, password st
 		tokens  TokenPair
 		created user.User
 	)
+
 	created, err = uc.userRepo.CreateUserTx(ctx, newUser, func(created user.User) error {
 		accessToken, err := uc.tokenProvider.GenerateAccessToken(created)
 		if err != nil {
 			return err
 		}
+
 		refreshToken, err := uc.tokenProvider.GenerateRefreshToken(created)
 		if err != nil {
 			return err
 		}
+
 		tokens = TokenPair{
 			AccessToken:  accessToken,
 			RefreshToken: refreshToken,
 		}
+
 		return nil
 	})
 	if err != nil {
 		return TokenPair{}, err
 	}
+
 	if err := uc.refreshRepo.Save(ctx, RefreshToken{
 		UserID:    created.ID,
 		TokenHash: hashToken(tokens.RefreshToken),
@@ -252,6 +260,7 @@ func (uc *Usecase) Login(ctx context.Context, email, password string) (TokenPair
 	if err != nil {
 		return TokenPair{}, ErrInvalidCredentials
 	}
+
 	if strings.TrimSpace(u.PasswordHash) == "" {
 		return TokenPair{}, ErrPasswordAuthNotAvailable
 	}
@@ -266,6 +275,7 @@ func (uc *Usecase) Login(ctx context.Context, email, password string) (TokenPair
 		if err := uc.recordFailure(ctx, u, now); err != nil {
 			return TokenPair{}, err
 		}
+
 		return TokenPair{}, ErrInvalidCredentials
 	}
 
@@ -280,6 +290,7 @@ func (uc *Usecase) handleLockState(ctx context.Context, u user.User, now time.Ti
 	if u.Status != user.UserStatusLocked || u.LockUntil == nil {
 		return u, nil
 	}
+
 	if u.LockUntil.After(now) {
 		return user.User{}, ErrAccountLocked
 	}
@@ -295,10 +306,12 @@ func (uc *Usecase) handleLockState(ctx context.Context, u user.User, now time.Ti
 	); err != nil {
 		return user.User{}, err
 	}
+
 	u.Status = user.UserStatusActive
 	u.LockUntil = nil
 	u.FailedLoginAttempts = 0
 	u.LastFailedLoginAt = nil
+
 	return u, nil
 }
 
@@ -347,14 +360,18 @@ func (uc *Usecase) Refresh(ctx context.Context, refreshToken string) (TokenPair,
 	if err != nil {
 		return TokenPair{}, ErrInvalidRefreshToken
 	}
+
 	tokenHash := hashToken(refreshToken)
+
 	stored, err := uc.refreshRepo.GetActiveByHash(ctx, tokenHash)
 	if err != nil {
 		return TokenPair{}, ErrInvalidRefreshToken
 	}
+
 	if stored.ExpiresAt.Before(uc.now()) {
 		return TokenPair{}, ErrInvalidRefreshToken
 	}
+
 	if !sameClientSession(stored, clientInfoFromContext(ctx)) {
 		return TokenPair{}, ErrInvalidRefreshToken
 	}
@@ -373,6 +390,7 @@ func (uc *Usecase) Refresh(ctx context.Context, refreshToken string) (TokenPair,
 	if err := uc.refreshRepo.RevokeByHash(ctx, tokenHash, now); err != nil {
 		return TokenPair{}, err
 	}
+
 	if err := uc.refreshRepo.Save(ctx, RefreshToken{
 		UserID:    u.ID,
 		TokenHash: hashToken(newRefreshToken),
@@ -393,9 +411,11 @@ func (uc *Usecase) Logout(ctx context.Context, refreshToken string) error {
 	if strings.TrimSpace(refreshToken) == "" {
 		return ErrInvalidRefreshToken
 	}
+
 	if _, err := uc.tokenProvider.ParseRefreshToken(refreshToken); err != nil {
 		return ErrInvalidRefreshToken
 	}
+
 	return uc.refreshRepo.RevokeByHash(ctx, hashToken(refreshToken), uc.now())
 }
 
@@ -410,6 +430,7 @@ func (uc *Usecase) ForgotPassword(ctx context.Context, email string) error {
 		// Avoid user-enumeration: respond success even when user does not exist.
 		return nil
 	}
+
 	if strings.TrimSpace(u.PasswordHash) == "" {
 		return ErrPasswordAuthNotAvailable
 	}
@@ -418,6 +439,7 @@ func (uc *Usecase) ForgotPassword(ctx context.Context, email string) error {
 	if err != nil {
 		return err
 	}
+
 	if err := uc.resetTokenRepo.Save(ctx, PasswordResetToken{
 		UserID:    u.ID,
 		TokenHash: hashToken(resetToken),
@@ -425,6 +447,7 @@ func (uc *Usecase) ForgotPassword(ctx context.Context, email string) error {
 	}); err != nil {
 		return err
 	}
+
 	if uc.resetMailer == nil || uc.resetBaseURL == "" {
 		return ErrMailerNotConfigured
 	}
@@ -456,6 +479,7 @@ func (uc *Usecase) ResetPassword(ctx context.Context, resetToken, newPassword st
 	}
 
 	tokenHash := hashToken(resetToken)
+
 	entry, err := uc.resetTokenRepo.GetActiveByHash(ctx, tokenHash)
 	if err != nil || entry.ExpiresAt.Before(uc.now()) {
 		return ErrInvalidResetToken
@@ -465,6 +489,7 @@ func (uc *Usecase) ResetPassword(ctx context.Context, resetToken, newPassword st
 	if err != nil {
 		return ErrInvalidResetToken
 	}
+
 	if strings.TrimSpace(u.PasswordHash) == "" {
 		return ErrPasswordAuthNotAvailable
 	}
@@ -473,13 +498,16 @@ func (uc *Usecase) ResetPassword(ctx context.Context, resetToken, newPassword st
 	if err != nil {
 		return err
 	}
+
 	if err := uc.userRepo.UpdatePasswordHash(ctx, u.ID, hashed); err != nil {
 		return err
 	}
+
 	now := uc.now()
 	if err := uc.refreshRepo.RevokeAllByUserID(ctx, u.ID, now); err != nil {
 		return err
 	}
+
 	return uc.resetTokenRepo.MarkUsedByHash(ctx, tokenHash, now)
 }
 
@@ -487,14 +515,17 @@ func (uc *Usecase) Me(ctx context.Context, accessToken string) (user.User, error
 	if strings.TrimSpace(accessToken) == "" {
 		return user.User{}, ErrInvalidAccessToken
 	}
+
 	tokenUser, err := uc.tokenProvider.ParseAccessToken(accessToken)
 	if err != nil {
 		return user.User{}, ErrInvalidAccessToken
 	}
+
 	u, err := uc.userRepo.GetByEmail(ctx, tokenUser.Email)
 	if err != nil {
 		return user.User{}, ErrInvalidAccessToken
 	}
+
 	return u, nil
 }
 
@@ -502,9 +533,11 @@ func (uc *Usecase) GoogleAuthURL(state string) (string, error) {
 	if uc.googleProvider == nil {
 		return "", ErrOAuthNotConfigured
 	}
+
 	if strings.TrimSpace(state) == "" {
 		return "", ErrMissingState
 	}
+
 	return uc.googleProvider.AuthCodeURL(state), nil
 }
 
@@ -512,6 +545,7 @@ func (uc *Usecase) LoginWithGoogle(ctx context.Context, code string) (TokenPair,
 	if uc.googleProvider == nil {
 		return TokenPair{}, ErrOAuthNotConfigured
 	}
+
 	if strings.TrimSpace(code) == "" {
 		return TokenPair{}, ErrMissingCode
 	}
@@ -520,9 +554,11 @@ func (uc *Usecase) LoginWithGoogle(ctx context.Context, code string) (TokenPair,
 	if err != nil {
 		return TokenPair{}, err
 	}
+
 	if strings.TrimSpace(oauthUser.Email) == "" {
 		return TokenPair{}, ErrMissingEmail
 	}
+
 	if !oauthUser.EmailVerified {
 		return TokenPair{}, ErrUnverifiedEmail
 	}
@@ -531,9 +567,11 @@ func (uc *Usecase) LoginWithGoogle(ctx context.Context, code string) (TokenPair,
 	if err != nil {
 		return TokenPair{}, err
 	}
+
 	if created {
 		return tokens, nil
 	}
+
 	return uc.issueTokens(ctx, u)
 }
 
@@ -554,6 +592,7 @@ func (uc *Usecase) getOrCreateUserFromOAuth(ctx context.Context, oauthUser OAuth
 	if err != nil {
 		return user.User{}, TokenPair{}, false, err
 	}
+
 	return created, tokens, true, nil
 }
 
@@ -562,14 +601,17 @@ func (uc *Usecase) findOAuthUserByProvider(ctx context.Context, oauthUser OAuthU
 	if providerUserID == "" {
 		return user.User{}, false, nil
 	}
+
 	userID, err := uc.oauthRepo.GetUserIDByProvider(ctx, OAuthProviderGoogle, providerUserID)
 	if err != nil {
 		return user.User{}, false, nil
 	}
+
 	u, err := uc.userRepo.GetByID(ctx, userID)
 	if err != nil {
 		return user.User{}, false, nil
 	}
+
 	return u, true, nil
 }
 
@@ -579,11 +621,14 @@ func (uc *Usecase) findOrLinkOAuthUserByEmail(ctx context.Context, oauthUser OAu
 		if err := uc.linkOAuthProvider(ctx, u.ID, oauthUser); err != nil {
 			return user.User{}, false, err
 		}
+
 		return u, true, nil
 	}
+
 	if !errors.Is(err, user.ErrUserNotFound) {
 		return user.User{}, false, err
 	}
+
 	return user.User{}, false, nil
 }
 
@@ -592,6 +637,7 @@ func (uc *Usecase) createOAuthUser(ctx context.Context, oauthUser OAuthUser) (us
 	if err != nil {
 		return user.User{}, TokenPair{}, err
 	}
+
 	newUser := user.User{
 		Name:   name,
 		Email:  oauthUser.Email,
@@ -600,27 +646,33 @@ func (uc *Usecase) createOAuthUser(ctx context.Context, oauthUser OAuthUser) (us
 	}
 
 	var tokens TokenPair
+
 	created, err := uc.userRepo.CreateUserTx(ctx, newUser, func(created user.User) error {
 		accessToken, err := uc.tokenProvider.GenerateAccessToken(created)
 		if err != nil {
 			return err
 		}
+
 		refreshToken, err := uc.tokenProvider.GenerateRefreshToken(created)
 		if err != nil {
 			return err
 		}
+
 		tokens = TokenPair{
 			AccessToken:  accessToken,
 			RefreshToken: refreshToken,
 		}
+
 		return nil
 	})
 	if err != nil {
 		return user.User{}, TokenPair{}, err
 	}
+
 	if err := uc.linkOAuthProvider(ctx, created.ID, oauthUser); err != nil {
 		return user.User{}, TokenPair{}, err
 	}
+
 	info := clientInfoFromContext(ctx)
 	if err := uc.refreshRepo.Save(ctx, RefreshToken{
 		UserID:    created.ID,
@@ -640,6 +692,7 @@ func (uc *Usecase) resolveOAuthName(name string) (string, error) {
 	if trimmed != "" {
 		return trimmed, nil
 	}
+
 	return generateRandomName(16)
 }
 
@@ -648,6 +701,7 @@ func (uc *Usecase) linkOAuthProvider(ctx context.Context, userID string, oauthUs
 	if providerUserID == "" {
 		return nil
 	}
+
 	return uc.oauthRepo.Upsert(ctx, userID, OAuthProviderGoogle, providerUserID, oauthUser.Email)
 }
 
@@ -660,7 +714,15 @@ func (uc *Usecase) recordFailure(ctx context.Context, u user.User, now time.Time
 
 	if failedCount >= uc.maxRetries {
 		failedCount = 0
-		t := now.Add(uc.jailDuration)
+
+		// Tính toán thời gian khóa tăng dần theo level
+		// Level 0 (lần đầu bị phạt): jailDuration * 2^0 (Ví dụ: 15p * 1 = 15p)
+		// Level 1: jailDuration * 2^1 (Ví dụ: 15p * 2 = 30p)
+		// Level 2: jailDuration * 2^2 (Ví dụ: 15p * 4 = 1h)
+		// ...
+		multiplier := time.Duration(1 << lockEscalationLevel)
+		t := now.Add(uc.jailDuration * multiplier)
+
 		lockUntil = &t
 		lockEscalationLevel++
 		status = user.UserStatusLocked
@@ -681,10 +743,12 @@ func generateRandomPassword(length int) (string, error) {
 	if length <= 0 {
 		return "", errors.New("invalid password length")
 	}
+
 	buf := make([]byte, length)
 	if _, err := rand.Read(buf); err != nil {
 		return "", err
 	}
+
 	return base64.RawURLEncoding.EncodeToString(buf), nil
 }
 
@@ -697,6 +761,7 @@ func (uc *Usecase) tokenProviderRefreshTTL() time.Duration {
 	if provider, ok := uc.tokenProvider.(interface{ GetRefreshTTL() time.Duration }); ok {
 		return provider.GetRefreshTTL()
 	}
+
 	return 7 * 24 * time.Hour
 }
 
@@ -704,10 +769,12 @@ func generateRandomName(length int) (string, error) {
 	if length <= 0 {
 		return "", errors.New("invalid name length")
 	}
+
 	buf := make([]byte, length)
 	if _, err := rand.Read(buf); err != nil {
 		return "", err
 	}
+
 	return "user_" + base64.RawURLEncoding.EncodeToString(buf), nil
 }
 
@@ -716,9 +783,11 @@ func composeResetPasswordURL(baseURL, token string) (string, error) {
 	if err != nil {
 		return "", err
 	}
+
 	query := u.Query()
 	query.Set("token", token)
 	u.RawQuery = query.Encode()
+
 	return u.String(), nil
 }
 
@@ -727,8 +796,10 @@ func sameClientSession(stored RefreshToken, info ClientInfo) bool {
 	if stored.UserAgent != "" && stored.UserAgent != normalized.UserAgent {
 		return false
 	}
+
 	if stored.IPAddress != "" && stored.IPAddress != normalized.IPAddress {
 		return false
 	}
+
 	return true
 }
