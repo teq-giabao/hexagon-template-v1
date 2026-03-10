@@ -1,7 +1,6 @@
 package httpserver
 
 import (
-	"net/http"
 	"time"
 
 	"github.com/labstack/echo/v4"
@@ -27,7 +26,7 @@ func (s *Server) handleListHotels(c echo.Context) error {
 		return err
 	}
 
-	return respondOK(c, APIDataResult{Data: toHotelResponses(hotels)})
+	return s.respondOK(c, APIDataResult{Data: toHotelResponses(hotels)})
 }
 
 // handleGetHotelByID godoc
@@ -46,7 +45,7 @@ func (s *Server) handleGetHotelByID(c echo.Context) error {
 		return err
 	}
 
-	return respondOK(c, toHotelResponse(h))
+	return s.respondOK(c, toHotelResponse(h))
 }
 
 // handleAddHotel godoc
@@ -62,16 +61,16 @@ func (s *Server) handleGetHotelByID(c echo.Context) error {
 func (s *Server) handleAddHotel(c echo.Context) error {
 	var req AddHotelRequest
 	if err := c.Bind(&req); err != nil {
-		return respondError(c, http.StatusBadRequest, "invalid request body", err.Error())
+		return s.respondBadRequest(c, "invalid request body", err.Error())
 	}
 
 	if err := c.Validate(&req); err != nil {
-		return respondError(c, http.StatusBadRequest, "invalid request body", err.Error())
+		return s.respondBadRequest(c, "invalid request body", err.Error())
 	}
 
 	checkIn, checkOut, err := parseHotelTimes(req.CheckInTime, req.CheckOutTime)
 	if err != nil {
-		return respondError(c, http.StatusBadRequest, "invalid check-in/check-out time", err.Error())
+		return s.respondBadRequest(c, "invalid check-in/check-out time", err.Error())
 	}
 
 	created, err := s.HotelService.AddHotel(c.Request().Context(), req.ToHotel(checkIn, checkOut))
@@ -79,7 +78,7 @@ func (s *Server) handleAddHotel(c echo.Context) error {
 		return err
 	}
 
-	return respondCreated(c, toHotelResponse(created))
+	return s.respondCreated(c, toHotelResponse(created))
 }
 
 // handleUploadHotelImages godoc

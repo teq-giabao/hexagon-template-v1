@@ -1,3 +1,4 @@
+// nolint: unused
 package httpserver
 
 import (
@@ -56,7 +57,11 @@ var defaultHTTPStatusCodeMapper = HTTPStatusCodeMapper{
 	},
 }
 
-func respondError(c echo.Context, httpStatus int, message, info string) error {
+func (s *Server) respondError(c echo.Context, httpStatus int, message, info string) error {
+	if s.Config != nil && s.Config.IsProduction() {
+		info = ""
+	}
+
 	return c.JSON(httpStatus, APIErrorResponse{
 		Code:    defaultHTTPStatusCodeMapper.Code(httpStatus),
 		Message: message,
@@ -64,7 +69,35 @@ func respondError(c echo.Context, httpStatus int, message, info string) error {
 	})
 }
 
-func respondOK(c echo.Context, result interface{}) error {
+func (s *Server) respondBadRequest(c echo.Context, message, info string) error {
+	return s.respondError(c, http.StatusBadRequest, message, info)
+}
+
+func (s *Server) respondUnauthorized(c echo.Context, message, info string) error {
+	return s.respondError(c, http.StatusUnauthorized, message, info)
+}
+
+func (s *Server) respondNotFound(c echo.Context, message, info string) error {
+	return s.respondError(c, http.StatusNotFound, message, info)
+}
+
+func (s *Server) respondConflict(c echo.Context, message, info string) error {
+	return s.respondError(c, http.StatusConflict, message, info)
+}
+
+func (s *Server) respondInternalServerError(c echo.Context, message, info string) error {
+	return s.respondError(c, http.StatusInternalServerError, message, info)
+}
+
+func (s *Server) respondTooManyRequests(c echo.Context, message, info string) error {
+	return s.respondError(c, http.StatusTooManyRequests, message, info)
+}
+
+func (s *Server) respondNotImplemented(c echo.Context, message, info string) error {
+	return s.respondError(c, http.StatusNotImplemented, message, info)
+}
+
+func (s *Server) respondOK(c echo.Context, result interface{}) error {
 	return c.JSON(http.StatusOK, APISuccessResponse{
 		Code:    "200",
 		Message: "OK",
@@ -72,7 +105,7 @@ func respondOK(c echo.Context, result interface{}) error {
 	})
 }
 
-func respondCreated(c echo.Context, result interface{}) error {
+func (s *Server) respondCreated(c echo.Context, result interface{}) error {
 	return c.JSON(http.StatusCreated, APISuccessResponse{
 		Code:    "201",
 		Message: "Created",

@@ -42,6 +42,8 @@ type Server struct {
 	UploadService upload.Service
 
 	JWTSecret string
+
+	Config *config.Config
 }
 
 func Default(cfg *config.Config) *Server {
@@ -50,10 +52,11 @@ func Default(cfg *config.Config) *Server {
 		Addr:         ":8080",
 		AllowOrigins: []string{"*"},
 		JWTSecret:    cfg.Auth.JWTSecret,
+		Config:       cfg,
 	}
 	s.Router.Validator = NewRequestValidator()
 
-	s.Router.HTTPErrorHandler = customHTTPErrorHandler
+	s.Router.HTTPErrorHandler = s.customHTTPErrorHandler
 	s.RegisterGlobalMiddlewares()
 	api := s.Router.Group("/api")
 
@@ -104,7 +107,7 @@ func (s *Server) Shutdown(ctx context.Context) error {
 }
 
 // customHTTPErrorHandler maps application errors to appropriate HTTP status codes
-func customHTTPErrorHandler(err error, c echo.Context) {
+func (s *Server) customHTTPErrorHandler(err error, c echo.Context) {
 	code := http.StatusInternalServerError
 	message := "Internal server error"
 	info := err.Error()
@@ -139,6 +142,10 @@ func customHTTPErrorHandler(err error, c echo.Context) {
 
 	// Don't write response if already committed
 	if !c.Response().Committed {
+		if s.Config.IsProduction() {
+			info = ""
+		}
+
 		err = c.JSON(code, APIErrorResponse{
 			Code:    defaultHTTPStatusCodeMapper.Code(code),
 			Message: message,

@@ -61,3 +61,9 @@ func LoadConfig() (*Config, error) {
 
 	return cfg, nil
 }
+
+func (c *Config) IsProduction() bool {
+	env := c.AppEnv
+	return env == "production" || env == "prod"
+}
+

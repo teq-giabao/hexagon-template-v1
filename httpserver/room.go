@@ -1,7 +1,6 @@
 package httpserver
 
 import (
-	"net/http"
 	"time"
 
 	"hexagon/room"
@@ -31,11 +30,11 @@ func (s *Server) RegisterRoomRoutes() {
 func (s *Server) handleAddRoom(c echo.Context) error {
 	var req AddRoomRequest
 	if err := c.Bind(&req); err != nil {
-		return respondError(c, http.StatusBadRequest, "invalid request body", err.Error())
+		return s.respondBadRequest(c, "invalid request body", err.Error())
 	}
 
 	if err := c.Validate(&req); err != nil {
-		return respondError(c, http.StatusBadRequest, "invalid request body", err.Error())
+		return s.respondBadRequest(c, "invalid request body", err.Error())
 	}
 
 	created, err := s.RoomService.AddRoom(c.Request().Context(), req.ToRoom())
@@ -43,7 +42,7 @@ func (s *Server) handleAddRoom(c echo.Context) error {
 		return err
 	}
 
-	return respondCreated(c, toRoomResponse(created))
+	return s.respondCreated(c, toRoomResponse(created))
 }
 
 // handleAddRoomAmenity godoc
@@ -61,11 +60,11 @@ func (s *Server) handleAddRoom(c echo.Context) error {
 func (s *Server) handleAddRoomAmenity(c echo.Context) error {
 	var req AddRoomAmenityRequest
 	if err := c.Bind(&req); err != nil {
-		return respondError(c, http.StatusBadRequest, "invalid request body", err.Error())
+		return s.respondBadRequest(c, "invalid request body", err.Error())
 	}
 
 	if err := c.Validate(&req); err != nil {
-		return respondError(c, http.StatusBadRequest, "invalid request body", err.Error())
+		return s.respondBadRequest(c, "invalid request body", err.Error())
 	}
 
 	created, err := s.RoomService.AddAmenity(c.Request().Context(), req.ToRoomAmenity())
@@ -73,7 +72,7 @@ func (s *Server) handleAddRoomAmenity(c echo.Context) error {
 		return err
 	}
 
-	return respondCreated(c, toRoomAmenityResponse(created))
+	return s.respondCreated(c, toRoomAmenityResponse(created))
 }
 
 // handleAddRoomInventory godoc
@@ -93,21 +92,21 @@ func (s *Server) handleAddRoomAmenity(c echo.Context) error {
 func (s *Server) handleAddRoomInventory(c echo.Context) error {
 	roomID := c.Param("room_id")
 	if roomID == "" {
-		return respondError(c, http.StatusBadRequest, "invalid room id", "room_id is required")
+		return s.respondBadRequest(c, "invalid room id", "room_id is required")
 	}
 
 	var req AddRoomInventoryRequest
 	if err := c.Bind(&req); err != nil {
-		return respondError(c, http.StatusBadRequest, "invalid request body", err.Error())
+		return s.respondBadRequest(c, "invalid request body", err.Error())
 	}
 
 	if err := c.Validate(&req); err != nil {
-		return respondError(c, http.StatusBadRequest, "invalid request body", err.Error())
+		return s.respondBadRequest(c, "invalid request body", err.Error())
 	}
 
 	date, err := parseISODate(req.Date)
 	if err != nil {
-		return respondError(c, http.StatusBadRequest, "invalid request body", "date must be in YYYY-MM-DD format")
+		return s.respondBadRequest(c, "invalid request body", "date must be in YYYY-MM-DD format")
 	}
 
 	created, err := s.RoomService.AddInventory(c.Request().Context(), req.ToRoomInventory(roomID, date))
@@ -115,7 +114,7 @@ func (s *Server) handleAddRoomInventory(c echo.Context) error {
 		return err
 	}
 
-	return respondCreated(c, toRoomInventoryResponse(created))
+	return s.respondCreated(c, toRoomInventoryResponse(created))
 }
 
 func (r AddRoomInventoryRequest) ToRoomInventory(roomID string, date time.Time) room.RoomInventory {

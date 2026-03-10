@@ -1,8 +1,6 @@
 package httpserver
 
 import (
-	"net/http"
-
 	"github.com/labstack/echo/v4"
 )
 
@@ -24,16 +22,16 @@ func (s *Server) RegisterSearchRoutes() {
 func (s *Server) handleSearchHotels(c echo.Context) error {
 	var req SearchHotelsRequest
 	if err := c.Bind(&req); err != nil {
-		return respondError(c, http.StatusBadRequest, "invalid request body", err.Error())
+		return s.respondBadRequest(c, "invalid request body", err.Error())
 	}
 
 	if err := c.Validate(&req); err != nil {
-		return respondError(c, http.StatusBadRequest, "invalid request body", err.Error())
+		return s.respondBadRequest(c, "invalid request body", err.Error())
 	}
 
 	checkIn, checkOut, err := parseISODateRange(req.CheckInAt, req.CheckOutAt)
 	if err != nil {
-		return respondError(c, http.StatusBadRequest, "invalid date range", err.Error())
+		return s.respondBadRequest(c, "invalid date range", err.Error())
 	}
 
 	result, err := s.SearchService.SearchHotels(c.Request().Context(), req.ToCriteria(checkIn, checkOut))
@@ -41,5 +39,5 @@ func (s *Server) handleSearchHotels(c echo.Context) error {
 		return err
 	}
 
-	return respondOK(c, APIDataResult{Data: toSearchHotelsResponse(result)})
+	return s.respondOK(c, APIDataResult{Data: toSearchHotelsResponse(result)})
 }

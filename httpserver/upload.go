@@ -4,7 +4,6 @@ import (
 	"errors"
 	"io"
 	"mime/multipart"
-	"net/http"
 
 	"hexagon/upload"
 
@@ -13,12 +12,12 @@ import (
 
 func (s *Server) handleUploadImages(c echo.Context, folder string) error {
 	if s.UploadService == nil {
-		return respondError(c, http.StatusNotImplemented, "upload service is not configured", "")
+		return s.respondNotImplemented(c, "upload service is not configured", "")
 	}
 
 	form, err := c.MultipartForm()
 	if err != nil {
-		return respondError(c, http.StatusBadRequest, "invalid multipart/form-data request", err.Error())
+		return s.respondBadRequest(c, "invalid multipart/form-data request", err.Error())
 	}
 
 	files := toUploadFiles(collectImageFiles(form))
@@ -27,13 +26,13 @@ func (s *Server) handleUploadImages(c echo.Context, folder string) error {
 	if err != nil {
 		switch {
 		case errors.Is(err, upload.ErrNoImageFile):
-			return respondError(c, http.StatusBadRequest, upload.ErrNoImageFile.Error(), "")
+			return s.respondBadRequest(c, upload.ErrNoImageFile.Error(), "")
 		case errors.Is(err, upload.ErrImageTooLarge), errors.Is(err, upload.ErrUnsupportedImageType):
-			return respondError(c, http.StatusBadRequest, "invalid image file", err.Error())
+			return s.respondBadRequest(c, "invalid image file", err.Error())
 		case errors.Is(err, upload.ErrUploaderUnavailable):
-			return respondError(c, http.StatusNotImplemented, "upload service is not configured", "")
+			return s.respondNotImplemented(c, "upload service is not configured", "")
 		default:
-			return respondError(c, http.StatusInternalServerError, "failed to upload image", err.Error())
+			return s.respondInternalServerError(c, "failed to upload image", err.Error())
 		}
 	}
 
@@ -47,7 +46,7 @@ func (s *Server) handleUploadImages(c echo.Context, folder string) error {
 		}
 	}
 
-	return respondCreated(c, APIDataResult{Data: UploadImagesResponse{Files: result}})
+	return s.respondCreated(c, APIDataResult{Data: UploadImagesResponse{Files: result}})
 }
 
 func collectImageFiles(form *multipart.Form) []*multipart.FileHeader {
