@@ -12,7 +12,6 @@ import (
 	"hexagon/user"
 
 	"github.com/golang-jwt/jwt/v5"
-	echojwt "github.com/labstack/echo-jwt/v4"
 	"github.com/labstack/echo/v4"
 	"github.com/labstack/echo/v4/middleware"
 	"golang.org/x/time/rate"
@@ -24,20 +23,19 @@ func (s *Server) RegisterAuthRoutes() {
 	authGroup.GET("/google/login", s.handleGoogleLogin)
 	authGroup.GET("/google/callback", s.handleGoogleCallback)
 
-	protectedAuth := s.Router.Group("/api/auth")
-	protectedAuth.Use(echojwt.WithConfig(echojwt.Config{
-		SigningKey:    []byte(s.JWTSecret),
-		SigningMethod: "HS256",
-	}))
-	protectedAuth.POST("/logout", s.handleLogout)
-	protectedAuth.GET("/me", s.handleMe)
-
 	sensitiveAuth := s.Router.Group("/api/auth")
 	sensitiveAuth.Use(s.authSensitiveRateLimiter())
 	sensitiveAuth.POST("/login", s.handleLogin)
+	sensitiveAuth.POST("/verify-email/send", s.handleSendVerifyEmail)
+	sensitiveAuth.POST("/verify-email", s.handleVerifyEmail)
 	sensitiveAuth.POST("/forgot-password", s.handleForgotPassword)
 	sensitiveAuth.POST("/reset-password", s.handleResetPassword)
 	sensitiveAuth.POST("/refresh", s.handleRefresh)
+}
+
+func (s *Server) RegisterAuthPrivateRoutes(g *echo.Group) {
+	g.POST("/auth/logout", s.handleLogout)
+	g.GET("/auth/me", s.handleMe)
 }
 
 // handleRegister godoc
@@ -47,7 +45,7 @@ func (s *Server) RegisterAuthRoutes() {
 // @Accept json
 // @Produce json
 // @Param payload body RegisterRequest true "Register payload"
-// @Success 200 {object} APISuccessResponse
+// @Success 201 {object} APISuccessResponse
 // @Failure 400 {object} APIErrorResponse
 // @Failure 409 {object} APIErrorResponse
 // @Failure 500 {object} APIErrorResponse
@@ -63,7 +61,7 @@ func (s *Server) handleRegister(c echo.Context) error {
 		return s.respondBadRequest(c, "invalid request body", err.Error())
 	}
 
-	tokens, err := s.AuthService.Register(
+	err := s.AuthService.Register(
 		auth.WithClientInfo(c.Request().Context(), auth.ClientInfo{
 			UserAgent: c.Request().UserAgent(),
 			IPAddress: c.RealIP(),
@@ -85,9 +83,8 @@ func (s *Server) handleRegister(c echo.Context) error {
 		return s.respondInternalServerError(c, "internal error", err.Error())
 	}
 
-	return s.respondOK(c, map[string]string{
-		"accessToken":  tokens.AccessToken,
-		"refreshToken": tokens.RefreshToken,
+	return s.respondCreated(c, map[string]string{
+		"message": "Please check your email to activate your account",
 	})
 }
 
@@ -134,6 +131,10 @@ func (s *Server) handleLogin(c echo.Context) error {
 
 		if errors.Is(err, auth.ErrInvalidCredentials) {
 			return s.respondUnauthorized(c, "invalid credentials", err.Error())
+		}
+
+		if errors.Is(err, auth.ErrEmailNotVerified) {
+			return s.respondUnauthorized(c, "email is not verified", err.Error())
 		}
 
 		return s.respondInternalServerError(c, "internal error", err.Error())
@@ -213,6 +214,78 @@ func (s *Server) handleForgotPassword(c echo.Context) error {
 
 		if errors.Is(err, auth.ErrMailerNotConfigured) {
 			return s.respondNotImplemented(c, "password reset mailer not configured", err.Error())
+		}
+
+		return s.respondInternalServerError(c, "internal error", err.Error())
+	}
+
+	return s.respondOK(c, map[string]any{})
+}
+
+// handleSendVerifyEmail godoc
+// @Summary Send verify email
+// @Description Send email verification link to user email
+// @Tags auth
+// @Accept json
+// @Produce json
+// @Param payload body SendVerifyEmailRequest true "Send verify email payload"
+// @Success 200 {object} APISuccessResponse
+// @Failure 400 {object} APIErrorResponse
+// @Failure 501 {object} APIErrorResponse
+// @Failure 500 {object} APIErrorResponse
+// @Router /api/auth/verify-email/send [post]
+func (s *Server) handleSendVerifyEmail(c echo.Context) error {
+	var req SendVerifyEmailRequest
+	if err := c.Bind(&req); err != nil {
+		return s.respondBadRequest(c, "invalid request body", err.Error())
+	}
+
+	if err := c.Validate(&req); err != nil {
+		return s.respondBadRequest(c, "invalid request body", err.Error())
+	}
+
+	if err := s.AuthService.SendEmailVerification(auth.WithClientInfo(c.Request().Context(), auth.ClientInfo{
+		UserAgent: c.Request().UserAgent(),
+		IPAddress: c.RealIP(),
+	}), req.Email); err != nil {
+		if errors.Is(err, auth.ErrMailerNotConfigured) {
+			return s.respondNotImplemented(c, "verify mailer not configured", err.Error())
+		}
+
+		return s.respondInternalServerError(c, "internal error", err.Error())
+	}
+
+	return s.respondOK(c, map[string]any{})
+}
+
+// handleVerifyEmail godoc
+// @Summary Verify email
+// @Description Verify user email with verification token
+// @Tags auth
+// @Accept json
+// @Produce json
+// @Param payload body VerifyEmailRequest true "Verify email payload"
+// @Success 200 {object} APISuccessResponse
+// @Failure 400 {object} APIErrorResponse
+// @Failure 401 {object} APIErrorResponse
+// @Failure 500 {object} APIErrorResponse
+// @Router /api/auth/verify-email [post]
+func (s *Server) handleVerifyEmail(c echo.Context) error {
+	var req VerifyEmailRequest
+	if err := c.Bind(&req); err != nil {
+		return s.respondBadRequest(c, "invalid request body", err.Error())
+	}
+
+	if err := c.Validate(&req); err != nil {
+		return s.respondBadRequest(c, "invalid request body", err.Error())
+	}
+
+	if err := s.AuthService.VerifyEmail(auth.WithClientInfo(c.Request().Context(), auth.ClientInfo{
+		UserAgent: c.Request().UserAgent(),
+		IPAddress: c.RealIP(),
+	}), req.Token); err != nil {
+		if errors.Is(err, auth.ErrInvalidVerifyToken) {
+			return s.respondUnauthorized(c, "invalid verify token", err.Error())
 		}
 
 		return s.respondInternalServerError(c, "internal error", err.Error())

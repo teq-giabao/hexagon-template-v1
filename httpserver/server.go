@@ -70,6 +70,7 @@ func Default(cfg *config.Config) *Server {
 		SigningKey:    []byte(cfg.Auth.JWTSecret),
 		SigningMethod: "HS256",
 	}))
+	private.Use(s.requireVerifiedEmail())
 	s.RegisterPrivateRoutes(private)
 	s.RegisterHealthRoutes()
 	s.RegisterSwaggerRoutes()
@@ -168,5 +169,5 @@ func (s *Server) RegisterPublicRoutes(g *echo.Group) {
 }
 
 func (s *Server) RegisterPrivateRoutes(g *echo.Group) {
-	// s.RegisterPrivateContactRoutes(g)
+	s.RegisterAuthPrivateRoutes(g)
 }

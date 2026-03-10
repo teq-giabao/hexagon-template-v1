@@ -14,11 +14,12 @@ import (
 )
 
 type mockUserRepo struct {
-	getByEmailFn         func(ctx context.Context, email string) (user.User, error)
-	getByIDFn            func(ctx context.Context, id string) (user.User, error)
-	createUserTxFn       func(ctx context.Context, u user.User, fn func(created user.User) error) (user.User, error)
-	updatePasswordHashFn func(ctx context.Context, id, passwordHash string) error
-	updateAuthStateFn    func(ctx context.Context, id string, failedLoginAttempts int, lockUntil *time.Time, lockEscalationLevel int, lastFailedLoginAt *time.Time, status user.UserStatus) error
+	getByEmailFn          func(ctx context.Context, email string) (user.User, error)
+	getByIDFn             func(ctx context.Context, id string) (user.User, error)
+	createUserTxFn        func(ctx context.Context, u user.User, fn func(created user.User) error) (user.User, error)
+	updatePasswordHashFn  func(ctx context.Context, id, passwordHash string) error
+	updateEmailVerifiedFn func(ctx context.Context, id string, verifiedAt *time.Time) error
+	updateAuthStateFn     func(ctx context.Context, id string, failedLoginAttempts int, lockUntil *time.Time, lockEscalationLevel int, lastFailedLoginAt *time.Time, status user.UserStatus) error
 }
 
 func (m *mockUserRepo) GetByEmail(ctx context.Context, email string) (user.User, error) {
@@ -52,6 +53,14 @@ func (m *mockUserRepo) CreateUserTx(ctx context.Context, u user.User, fn func(cr
 func (m *mockUserRepo) UpdatePasswordHash(ctx context.Context, id, passwordHash string) error {
 	if m.updatePasswordHashFn != nil {
 		return m.updatePasswordHashFn(ctx, id, passwordHash)
+	}
+
+	return nil
+}
+
+func (m *mockUserRepo) UpdateEmailVerifiedAt(ctx context.Context, id string, verifiedAt *time.Time) error {
+	if m.updateEmailVerifiedFn != nil {
+		return m.updateEmailVerifiedFn(ctx, id, verifiedAt)
 	}
 
 	return nil
@@ -137,6 +146,31 @@ func (m *mockResetRepo) MarkUsedByHash(ctx context.Context, tokenHash string, us
 	return nil
 }
 
+type mockVerifyRepo struct {
+	getActiveByHashFn func(ctx context.Context, tokenHash string) (auth.EmailVerificationToken, error)
+	markUsedFn        func(ctx context.Context, tokenHash string, usedAt time.Time) error
+}
+
+func (m *mockVerifyRepo) Save(ctx context.Context, token auth.EmailVerificationToken) error {
+	return nil
+}
+
+func (m *mockVerifyRepo) GetActiveByHash(ctx context.Context, tokenHash string) (auth.EmailVerificationToken, error) {
+	if m.getActiveByHashFn != nil {
+		return m.getActiveByHashFn(ctx, tokenHash)
+	}
+
+	return auth.EmailVerificationToken{}, errors.New("not found")
+}
+
+func (m *mockVerifyRepo) MarkUsedByHash(ctx context.Context, tokenHash string, usedAt time.Time) error {
+	if m.markUsedFn != nil {
+		return m.markUsedFn(ctx, tokenHash, usedAt)
+	}
+
+	return nil
+}
+
 type mockOAuthRepo struct{}
 
 func (m *mockOAuthRepo) GetUserIDByProvider(ctx context.Context, provider auth.OAuthProvider, providerUserID string) (string, error) {
@@ -203,7 +237,7 @@ func (m *mockTokenProvider) ParseRefreshToken(refreshToken string) (user.User, e
 }
 
 func newUsecaseForTest(u *mockUserRepo, r *mockRefreshRepo, p *mockResetRepo, h *mockHasher, t *mockTokenProvider) *auth.Usecase {
-	return auth.NewUsecase(u, &mockOAuthRepo{}, r, p, h, t, nil, nil, "")
+	return auth.NewUsecase(u, &mockOAuthRepo{}, r, p, &mockVerifyRepo{}, h, t, nil, nil, "", "")
 }
 
 func TestRegister_ReturnsConflictWhenEmailBelongsToOAuthOnly(t *testing.T) {
@@ -214,7 +248,7 @@ func TestRegister_ReturnsConflictWhenEmailBelongsToOAuthOnly(t *testing.T) {
 	}
 	uc := newUsecaseForTest(repo, &mockRefreshRepo{}, &mockResetRepo{}, &mockHasher{}, &mockTokenProvider{})
 
-	_, err := uc.Register(context.Background(), "John", "john@example.com", "0123456789", "Password@123")
+	err := uc.Register(context.Background(), "John", "john@example.com", "0123456789", "Password@123")
 
 	require.Error(t, err)
 	assert.ErrorIs(t, err, auth.ErrEmailRegisteredWithOAuth)
@@ -234,6 +268,32 @@ func TestLogin_ReturnsPasswordAuthNotAvailableForOAuthOnly(t *testing.T) {
 	assert.ErrorIs(t, err, auth.ErrPasswordAuthNotAvailable)
 }
 
+func TestLogin_ReturnsEmailNotVerifiedWhenEmailNotVerified(t *testing.T) {
+	repo := &mockUserRepo{
+		getByEmailFn: func(ctx context.Context, email string) (user.User, error) {
+			return user.User{
+				ID:           "u1",
+				Email:        email,
+				PasswordHash: "hashed-password",
+				Status:       user.UserStatusActive,
+			}, nil
+		},
+	}
+
+	hasher := &mockHasher{
+		compareFn: func(hashed, plain string) error {
+			return nil
+		},
+	}
+
+	uc := newUsecaseForTest(repo, &mockRefreshRepo{}, &mockResetRepo{}, hasher, &mockTokenProvider{})
+
+	_, err := uc.Login(context.Background(), "unverified@example.com", "Password@123")
+
+	require.Error(t, err)
+	assert.ErrorIs(t, err, auth.ErrEmailNotVerified)
+}
+
 func TestRefresh_FailsWhenSessionClientInfoMismatches(t *testing.T) {
 	now := time.Date(2026, 3, 2, 10, 0, 0, 0, time.UTC)
 	uc := auth.NewUsecase(&mockUserRepo{}, &mockOAuthRepo{}, &mockRefreshRepo{
@@ -246,11 +306,11 @@ func TestRefresh_FailsWhenSessionClientInfoMismatches(t *testing.T) {
 				ExpiresAt: now.Add(5 * time.Minute),
 			}, nil
 		},
-	}, &mockResetRepo{}, &mockHasher{}, &mockTokenProvider{
+	}, &mockResetRepo{}, &mockVerifyRepo{}, &mockHasher{}, &mockTokenProvider{
 		parseRefreshFn: func(refreshToken string) (user.User, error) {
 			return user.User{ID: "u1", Email: "u1@example.com", Role: user.UserRoleUser}, nil
 		},
-	}, nil, nil, "")
+	}, nil, nil, "", "")
 	uc.NowForTest(now)
 
 	ctx := auth.WithClientInfo(context.Background(), auth.ClientInfo{
@@ -313,7 +373,7 @@ func TestResetPassword_RevokesAllSessionsOnSuccess(t *testing.T) {
 			return "new-hash", nil
 		},
 	}
-	uc := auth.NewUsecase(repo, &mockOAuthRepo{}, refreshRepo, resetRepo, hasher, &mockTokenProvider{}, nil, nil, "")
+	uc := auth.NewUsecase(repo, &mockOAuthRepo{}, refreshRepo, resetRepo, &mockVerifyRepo{}, hasher, &mockTokenProvider{}, nil, nil, "", "")
 	uc.NowForTest(now)
 
 	err := uc.ResetPassword(context.Background(), "raw-reset-token", "NewPassword@123")

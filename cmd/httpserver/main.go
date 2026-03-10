@@ -103,6 +103,7 @@ func main() {
 		postgres.NewOAuthProviderAccountRepository(db),
 		refreshTokenRepo,
 		postgres.NewPasswordResetTokenRepository(db),
+		postgres.NewEmailVerificationTokenRepository(db),
 		hashing.NewBcryptHasher(),
 		jwt.NewJWTProvider(
 			cfg.Auth.JWTSecret,
@@ -110,8 +111,9 @@ func main() {
 			time.Duration(cfg.Auth.RefreshTTL)*time.Second,
 		),
 		googleProvider,
-		createResetMailer(cfg),
+		createMailer(cfg),
 		cfg.Auth.ResetPasswordURL,
+		cfg.Auth.VerifyEmailURL,
 	)
 	server := httpserver.Default(cfg)
 	server.JWTSecret = cfg.Auth.JWTSecret
@@ -159,7 +161,7 @@ func createImageUploader(cfg *config.Config) upload.Uploader {
 	return uploader
 }
 
-func createResetMailer(cfg *config.Config) auth.PasswordResetMailer {
+func createMailer(cfg *config.Config) auth.Mailer {
 	if cfg == nil {
 		return nil
 	}
@@ -170,7 +172,7 @@ func createResetMailer(cfg *config.Config) auth.PasswordResetMailer {
 		cfg.Auth.ResendFromName,
 	)
 	if err != nil {
-		slog.Warn("password reset mailer is not configured", "error", err)
+		slog.Warn("mailer is not configured", "error", err)
 		return nil
 	}
 

@@ -63,6 +63,39 @@ func (p *Provider) SendResetPasswordEmail(ctx context.Context, toEmail, toName, 
 	return err
 }
 
+func (p *Provider) SendVerifyEmail(ctx context.Context, toEmail, toName, verifyURL string) error {
+	select {
+	case <-ctx.Done():
+		return ctx.Err()
+	default:
+	}
+
+	toEmail = strings.TrimSpace(toEmail)
+	toName = strings.TrimSpace(toName)
+	verifyURL = strings.TrimSpace(verifyURL)
+
+	if toEmail == "" || verifyURL == "" {
+		return fmt.Errorf("invalid verify mail payload")
+	}
+
+	html := fmt.Sprintf(
+		"<p>Hello %s,</p><p>Click <a href=\"%s\">here</a> to verify your email.</p><p>If you did not create this account, ignore this email.</p>",
+		displayName(toName),
+		verifyURL,
+	)
+
+	params := &resendlib.SendEmailRequest{
+		From:    fromHeader(p.fromName, p.fromEmail),
+		To:      []string{toEmail},
+		Subject: "Verify your email",
+		Html:    html,
+	}
+
+	_, err := p.client.Emails.Send(params)
+
+	return err
+}
+
 func fromHeader(name, email string) string {
 	if strings.TrimSpace(name) == "" {
 		return email

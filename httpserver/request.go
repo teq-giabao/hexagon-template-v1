@@ -56,6 +56,14 @@ type ForgotPasswordRequest struct {
 	Email string `json:"email" validate:"required,email,max=255"`
 }
 
+type SendVerifyEmailRequest struct {
+	Email string `json:"email" validate:"required,email,max=255"`
+}
+
+type VerifyEmailRequest struct {
+	Token string `json:"token" validate:"required,notblank"`
+}
+
 type ResetPasswordRequest struct {
 	Token       string `json:"token" validate:"required,notblank"`
 	NewPassword string `json:"newPassword" validate:"required,notblank,password"`

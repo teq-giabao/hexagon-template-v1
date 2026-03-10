@@ -31,6 +31,7 @@ type Config struct {
 		GoogleClientSecret string `envconfig:"AUTH_GOOGLE_CLIENT_SECRET"`
 		GoogleRedirectURL  string `envconfig:"AUTH_GOOGLE_REDIRECT_URL"`
 		ResetPasswordURL   string `envconfig:"AUTH_RESET_PASSWORD_URL"`
+		VerifyEmailURL     string `envconfig:"AUTH_VERIFY_EMAIL_URL"`
 		ResendAPIKey       string `envconfig:"AUTH_RESEND_API_KEY"`
 		ResendFromEmail    string `envconfig:"AUTH_RESEND_FROM_EMAIL"`
 		ResendFromName     string `envconfig:"AUTH_RESEND_FROM_NAME"`
@@ -66,4 +67,3 @@ func (c *Config) IsProduction() bool {
 	env := c.AppEnv
 	return env == "production" || env == "prod"
 }
-
