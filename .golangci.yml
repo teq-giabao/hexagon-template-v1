@@ -12,7 +12,7 @@ linters:
     - staticcheck
     - tagliatelle
     - unused
-    - wsl_v5
+    - wsl
   settings:
     dupl:
       threshold: 100
