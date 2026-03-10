@@ -250,7 +250,6 @@ func TestSentry_LogLevelMethods(t *testing.T) {
 		t.Run(tt.name, func(t *testing.T) {
 			sentry := new(Sentry)
 			tt.method(sentry)
-			// Behavior verified: methods execute without error
 		})
 	}
 }
@@ -315,19 +314,16 @@ func TestSentry_FormattedMethods(t *testing.T) {
 	t.Run("Debugf formats message", func(t *testing.T) {
 		sentry := new(Sentry)
 		sentry.Debugf("debug: %s %d", "test", 123)
-		// Behavior verified: method executes without error
 	})
 
 	t.Run("Infof formats message", func(t *testing.T) {
 		sentry := new(Sentry)
 		sentry.Infof("info: %s %d", "test", 123)
-		// Behavior verified: method executes without error
 	})
 
 	t.Run("Warningf formats message", func(t *testing.T) {
 		sentry := new(Sentry)
 		sentry.Warningf("warning: %s %d", "test", 123)
-		// Behavior verified: method executes without error
 	})
 }
 

@@ -246,7 +246,6 @@ func assertServerIsRunning(t *testing.T, port int) {
 	if err == nil {
 		resp.Body.Close()
 	}
-	// If we got here without panic, server is accessible
 }
 
 func assertServerStopsGracefully(t *testing.T, server *httpserver.Server, errChan chan error) {
