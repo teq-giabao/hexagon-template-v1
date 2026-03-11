@@ -1,6 +1,7 @@
 package httpserver
 
 import (
+	"log/slog"
 	"strings"
 	"time"
 	"unicode"
@@ -32,20 +33,28 @@ func (v *RequestValidator) Validate(i interface{}) error {
 func validateNotBlank(fl validator.FieldLevel) bool {
 	value, ok := fl.Field().Interface().(string)
 	if !ok {
+		slog.Error("validation failed", "tag", "notblank", "reason", "field is not string")
 		return false
 	}
 
-	return strings.TrimSpace(value) != ""
+	valid := strings.TrimSpace(value) != ""
+	if !valid {
+		slog.Error("validation failed", "tag", "notblank", "reason", "blank string")
+	}
+
+	return valid
 }
 
 func validatePassword(fl validator.FieldLevel) bool {
 	value, ok := fl.Field().Interface().(string)
 	if !ok {
+		slog.Error("validation failed", "tag", "password", "reason", "field is not string")
 		return false
 	}
 
 	value = strings.TrimSpace(value)
 	if len(value) < 9 || len(value) > 72 {
+		slog.Error("validation failed", "tag", "password", "reason", "invalid length")
 		return false
 	}
 
@@ -67,34 +76,48 @@ func validatePassword(fl validator.FieldLevel) bool {
 		}
 	}
 
-	return hasUpper && hasLower && hasNumber && hasSpecial
+	valid := hasUpper && hasLower && hasNumber && hasSpecial
+	if !valid {
+		slog.Error("validation failed", "tag", "password", "reason", "missing required character classes")
+	}
+
+	return valid
 }
 
 func validateDateNotPast(fl validator.FieldLevel) bool {
 	value, ok := fl.Field().Interface().(string)
 	if !ok {
+		slog.Error("validation failed", "tag", "date_not_past", "reason", "field is not string")
 		return false
 	}
 
-	t, err := parseISODate(value)
+	t, err := isoDate(value)
 	if err != nil {
+		slog.Error("validation failed", "tag", "date_not_past", "reason", "invalid date format", "value", value)
 		return false
 	}
 
 	now := time.Now()
 	today := time.Date(now.Year(), now.Month(), now.Day(), 0, 0, 0, 0, now.Location())
 
-	return !t.Before(today)
+	valid := !t.Before(today)
+	if !valid {
+		slog.Error("validation failed", "tag", "date_not_past", "reason", "date is in the past", "value", value)
+	}
+
+	return valid
 }
 
 func validateDateWithinBookingWindow(fl validator.FieldLevel) bool {
 	value, ok := fl.Field().Interface().(string)
 	if !ok {
+		slog.Error("validation failed", "tag", "date_within_booking_window", "reason", "field is not string")
 		return false
 	}
 
-	t, err := parseISODate(value)
+	t, err := isoDate(value)
 	if err != nil {
+		slog.Error("validation failed", "tag", "date_within_booking_window", "reason", "invalid date format", "value", value)
 		return false
 	}
 
@@ -102,29 +125,43 @@ func validateDateWithinBookingWindow(fl validator.FieldLevel) bool {
 	today := time.Date(now.Year(), now.Month(), now.Day(), 0, 0, 0, 0, now.Location())
 	maxDate := today.AddDate(2, 0, 0)
 
-	return !t.After(maxDate)
+	valid := !t.After(maxDate)
+	if !valid {
+		slog.Error("validation failed", "tag", "date_within_booking_window", "reason", "date exceeds max booking window", "value", value)
+	}
+
+	return valid
 }
 
 func validateCheckoutAfterCheckin(fl validator.FieldLevel) bool {
 	checkOut, ok := fl.Field().Interface().(string)
 	if !ok {
+		slog.Error("validation failed", "tag", "checkout_after_checkin", "reason", "checkout field is not string")
 		return false
 	}
 
 	checkIn := fl.Parent().FieldByName("CheckInAt").String()
 	if strings.TrimSpace(checkIn) == "" || strings.TrimSpace(checkOut) == "" {
+		slog.Error("validation failed", "tag", "checkout_after_checkin", "reason", "missing checkin/checkout value")
 		return false
 	}
 
-	checkInDate, err := parseISODate(checkIn)
+	checkInDate, err := isoDate(checkIn)
 	if err != nil {
+		slog.Error("validation failed", "tag", "checkout_after_checkin", "reason", "invalid checkin date", "value", checkIn)
 		return false
 	}
 
-	checkOutDate, err := parseISODate(checkOut)
+	checkOutDate, err := isoDate(checkOut)
 	if err != nil {
+		slog.Error("validation failed", "tag", "checkout_after_checkin", "reason", "invalid checkout date", "value", checkOut)
 		return false
 	}
 
-	return checkOutDate.After(checkInDate)
+	valid := checkOutDate.After(checkInDate)
+	if !valid {
+		slog.Error("validation failed", "tag", "checkout_after_checkin", "reason", "checkout is not after checkin", "checkInAt", checkIn, "checkOutAt", checkOut)
+	}
+
+	return valid
 }

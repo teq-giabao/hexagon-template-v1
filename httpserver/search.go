@@ -29,7 +29,12 @@ func (s *Server) handleSearchHotels(c echo.Context) error {
 		return s.respondBadRequest(c, "invalid request body", err.Error())
 	}
 
-	checkIn, checkOut, err := parseISODateRange(req.CheckInAt, req.CheckOutAt)
+	checkIn, err := isoDate(req.CheckInAt)
+	if err != nil {
+		return s.respondBadRequest(c, "invalid date range", err.Error())
+	}
+
+	checkOut, err := isoDate(req.CheckOutAt)
 	if err != nil {
 		return s.respondBadRequest(c, "invalid date range", err.Error())
 	}
