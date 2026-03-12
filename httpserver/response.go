@@ -347,7 +347,16 @@ func jsonValueOrEmptyArray(raw json.RawMessage) any {
 }
 
 type SearchHotelsResponse struct {
-	Hotels []SearchHotelItemResponse `json:"hotels"`
+	Hotels     []SearchHotelItemResponse `json:"hotels"`
+	Pagination SearchPaginationResponse  `json:"pagination"`
+}
+
+type SearchPaginationResponse struct {
+	Page       int `json:"page"`
+	PageSize   int `json:"pageSize"`
+	Offset     int `json:"offset"`
+	Total      int `json:"total"`
+	TotalPages int `json:"totalPages"`
 }
 
 type SearchHotelItemResponse struct {
@@ -363,7 +372,7 @@ type SearchHotelItemResponse struct {
 	FlexibleMatch      bool     `json:"flexibleMatch"`
 }
 
-func toSearchHotelsResponse(in []search.HotelSearchResult) SearchHotelsResponse {
+func toSearchHotelsResponse(in []search.HotelSearchResult, page, pageSize, offset, total int) SearchHotelsResponse {
 	hotels := make([]SearchHotelItemResponse, len(in))
 	for i := range in {
 		hotels[i] = SearchHotelItemResponse{
@@ -380,5 +389,123 @@ func toSearchHotelsResponse(in []search.HotelSearchResult) SearchHotelsResponse 
 		}
 	}
 
-	return SearchHotelsResponse{Hotels: hotels}
+	totalPages := 0
+	if pageSize > 0 {
+		totalPages = (total + pageSize - 1) / pageSize
+	}
+
+	return SearchHotelsResponse{
+		Hotels: hotels,
+		Pagination: SearchPaginationResponse{
+			Page:       page,
+			PageSize:   pageSize,
+			Offset:     offset,
+			Total:      total,
+			TotalPages: totalPages,
+		},
+	}
+}
+
+type SearchHotelRoomsResponse struct {
+	HotelID            string                        `json:"hotelId"`
+	RequestedRoomCount int                           `json:"requestedRoomCount"`
+	StrictMatch        bool                          `json:"strictMatch"`
+	Rooms              []SearchHotelRoomItemResponse `json:"rooms"`
+}
+
+type SearchHotelRoomItemResponse struct {
+	RoomID         string   `json:"roomId"`
+	Name           string   `json:"name"`
+	Description    string   `json:"description"`
+	BasePrice      float64  `json:"basePrice"`
+	MaxAdult       int      `json:"maxAdult"`
+	MaxChild       int      `json:"maxChild"`
+	MaxOccupancy   int      `json:"maxOccupancy"`
+	AvailableCount int      `json:"availableCount"`
+	AmenityIDs     []string `json:"amenityIds"`
+	AmenityCodes   []string `json:"amenityCodes"`
+	AmenityNames   []string `json:"amenityNames"`
+}
+
+func toSearchHotelRoomsResponse(in search.HotelRoomSearchResult) SearchHotelRoomsResponse {
+	rooms := make([]SearchHotelRoomItemResponse, len(in.Rooms))
+
+	for i := range in.Rooms {
+		rooms[i] = SearchHotelRoomItemResponse{
+			RoomID:         in.Rooms[i].RoomID,
+			Name:           in.Rooms[i].Name,
+			Description:    in.Rooms[i].Description,
+			BasePrice:      in.Rooms[i].BasePrice,
+			MaxAdult:       in.Rooms[i].MaxAdult,
+			MaxChild:       in.Rooms[i].MaxChild,
+			MaxOccupancy:   in.Rooms[i].MaxOccupancy,
+			AvailableCount: in.Rooms[i].AvailableCount,
+			AmenityIDs:     in.Rooms[i].AmenityIDs,
+			AmenityCodes:   in.Rooms[i].AmenityCodes,
+			AmenityNames:   in.Rooms[i].AmenityNames,
+		}
+	}
+
+	return SearchHotelRoomsResponse{
+		HotelID:            in.HotelID,
+		RequestedRoomCount: in.RequestedRoomCount,
+		StrictMatch:        in.StrictMatch,
+		Rooms:              rooms,
+	}
+}
+
+type SearchHotelRoomCombinationsResponse struct {
+	HotelID            string                               `json:"hotelId"`
+	RequestedRoomCount int                                  `json:"requestedRoomCount"`
+	Combinations       []SearchHotelRoomCombinationResponse `json:"combinations"`
+}
+
+type SearchHotelRoomCombinationResponse struct {
+	Items          []SearchHotelRoomCombinationItemResponse `json:"items"`
+	TotalPrice     float64                                  `json:"totalPrice"`
+	TotalRooms     int                                      `json:"totalRooms"`
+	TotalMaxAdult  int                                      `json:"totalMaxAdult"`
+	TotalMaxChild  int                                      `json:"totalMaxChild"`
+	TotalOccupancy int                                      `json:"totalOccupancy"`
+}
+
+type SearchHotelRoomCombinationItemResponse struct {
+	RoomID    string  `json:"roomId"`
+	RoomName  string  `json:"roomName"`
+	Quantity  int     `json:"quantity"`
+	UnitPrice float64 `json:"unitPrice"`
+	Subtotal  float64 `json:"subtotal"`
+}
+
+func toSearchHotelRoomCombinationsResponse(in search.HotelRoomCombinationsResult) SearchHotelRoomCombinationsResponse {
+	combinations := make([]SearchHotelRoomCombinationResponse, len(in.Combinations))
+
+	for i := range in.Combinations {
+		items := make([]SearchHotelRoomCombinationItemResponse, len(in.Combinations[i].Items))
+
+		for j := range in.Combinations[i].Items {
+			items[j] = SearchHotelRoomCombinationItemResponse{
+				RoomID:    in.Combinations[i].Items[j].RoomID,
+				RoomName:  in.Combinations[i].Items[j].RoomName,
+				Quantity:  in.Combinations[i].Items[j].Quantity,
+				UnitPrice: in.Combinations[i].Items[j].UnitPrice,
+				Subtotal:  in.Combinations[i].Items[j].Subtotal,
+			}
+		}
+
+		combinations[i] = SearchHotelRoomCombinationResponse{
+			Items:          items,
+			TotalPrice:     in.Combinations[i].TotalPrice,
+			TotalRooms:     in.Combinations[i].TotalRooms,
+			TotalMaxAdult:  in.Combinations[i].TotalMaxAdult,
+			TotalMaxChild:  in.Combinations[i].TotalMaxChild,
+			TotalOccupancy: in.Combinations[i].TotalOccupancy,
+		}
+	}
+
+	return SearchHotelRoomCombinationsResponse{
+		HotelID:            in.HotelID,
+		RequestedRoomCount: in.RequestedRoomCount,
+		Combinations:       combinations,
+	}
 }

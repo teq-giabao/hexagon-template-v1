@@ -275,6 +275,72 @@ definitions:
     required:
     - url
     type: object
+  httpserver.SearchHotelRoomCombinationsRequest:
+    properties:
+      adultCount:
+        example: 5
+        type: integer
+      amenityIds:
+        items:
+          type: string
+        type: array
+      checkInAt:
+        example: "2026-04-01"
+        type: string
+      checkOutAt:
+        example: "2026-04-03"
+        type: string
+      childrenAges:
+        example:
+        - 5
+        items:
+          type: integer
+        type: array
+      maxCombinations:
+        example: 5
+        minimum: 0
+        type: integer
+      roomCount:
+        example: 1
+        type: integer
+    required:
+    - adultCount
+    - amenityIds
+    - checkInAt
+    - checkOutAt
+    - roomCount
+    type: object
+  httpserver.SearchHotelRoomsRequest:
+    properties:
+      adultCount:
+        example: 3
+        type: integer
+      amenityIds:
+        items:
+          type: string
+        type: array
+      checkInAt:
+        example: "2026-04-01"
+        type: string
+      checkOutAt:
+        example: "2026-04-03"
+        type: string
+      childrenAges:
+        example:
+        - 5
+        items:
+          type: integer
+        type: array
+      roomCount:
+        example: 2
+        type: integer
+    required:
+    - adultCount
+    - amenityIds
+    - checkInAt
+    - checkOutAt
+    - roomCount
+    type: object
   httpserver.SearchHotelsRequest:
     properties:
       adultCount:
@@ -296,6 +362,19 @@ definitions:
         items:
           type: integer
         type: array
+      offset:
+        example: 0
+        minimum: 0
+        type: integer
+      page:
+        example: 1
+        minimum: 1
+        type: integer
+      pageSize:
+        example: 10
+        maximum: 100
+        minimum: 1
+        type: integer
       paymentOptions:
         example:
         - immediate
@@ -900,6 +979,86 @@ paths:
           schema:
             $ref: '#/definitions/httpserver.APIErrorResponse'
       summary: Search Hotels
+      tags:
+      - search
+  /api/search/hotels/{hotel_id}/room-combinations:
+    post:
+      consumes:
+      - application/json
+      description: Return purchasable room combinations for a hotel under requested
+        occupancy and date constraints.
+      parameters:
+      - description: Hotel ID
+        in: path
+        name: hotel_id
+        required: true
+        type: string
+      - description: Hotel room combinations criteria
+        in: body
+        name: payload
+        required: true
+        schema:
+          $ref: '#/definitions/httpserver.SearchHotelRoomCombinationsRequest'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/httpserver.APISuccessResponse'
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/httpserver.APIErrorResponse'
+        "404":
+          description: Not Found
+          schema:
+            $ref: '#/definitions/httpserver.APIErrorResponse'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/httpserver.APIErrorResponse'
+      summary: Search Hotel Room Combinations
+      tags:
+      - search
+  /api/search/hotels/{hotel_id}/rooms:
+    post:
+      consumes:
+      - application/json
+      description: Search available room types in a hotel by date range, occupancy,
+        and room amenity filters.
+      parameters:
+      - description: Hotel ID
+        in: path
+        name: hotel_id
+        required: true
+        type: string
+      - description: Hotel room search criteria
+        in: body
+        name: payload
+        required: true
+        schema:
+          $ref: '#/definitions/httpserver.SearchHotelRoomsRequest'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/httpserver.APISuccessResponse'
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/httpserver.APIErrorResponse'
+        "404":
+          description: Not Found
+          schema:
+            $ref: '#/definitions/httpserver.APIErrorResponse'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/httpserver.APIErrorResponse'
+      summary: Search Hotel Rooms
       tags:
       - search
   /api/users:
