@@ -14,6 +14,7 @@ var (
 	ErrAdultCountInvalid = errs.Errorf(errs.EINVALID, "search: adults must be greater than 0")
 	ErrChildAgeInvalid   = errs.Errorf(errs.EINVALID, "search: child age must be between 0 and 17")
 	ErrRoomCountInvalid  = errs.Errorf(errs.EINVALID, "search: room count must be greater than 0")
+	ErrHotelNotFound     = errs.Errorf(errs.ENOTFOUND, "search: hotel not found")
 )
 
 type Criteria struct {
@@ -39,6 +40,50 @@ type HotelSearchResult struct {
 	AvailableRoomCount int
 	MatchesRequested   bool
 	FlexibleMatch      bool
+}
+
+type HotelRoomSearchResult struct {
+	HotelID            string
+	RequestedRoomCount int
+	StrictMatch        bool
+	Rooms              []HotelRoomSearchItem
+}
+
+type HotelRoomSearchItem struct {
+	RoomID         string
+	Name           string
+	Description    string
+	BasePrice      float64
+	MaxAdult       int
+	MaxChild       int
+	MaxOccupancy   int
+	AvailableCount int
+	AmenityIDs     []string
+	AmenityCodes   []string
+	AmenityNames   []string
+}
+
+type HotelRoomCombinationsResult struct {
+	HotelID            string
+	RequestedRoomCount int
+	Combinations       []RoomCombination
+}
+
+type RoomCombination struct {
+	Items          []RoomCombinationItem
+	TotalPrice     float64
+	TotalRooms     int
+	TotalMaxAdult  int
+	TotalMaxChild  int
+	TotalOccupancy int
+}
+
+type RoomCombinationItem struct {
+	RoomID    string
+	RoomName  string
+	Quantity  int
+	UnitPrice float64
+	Subtotal  float64
 }
 
 func (c Criteria) Validate() error {

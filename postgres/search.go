@@ -2,6 +2,7 @@ package postgres
 
 import (
 	"context"
+	"errors"
 	"sort"
 	"strings"
 	"time"
@@ -24,10 +25,10 @@ func NewSearchRepository(db *gorm.DB) *SearchRepository {
 	return &SearchRepository{db: db}
 }
 
-/*
-SearchHotels loads candidate hotels, evaluates availability/allocation,
-and returns only hotels that satisfy strict or flexible matching rules.
-*/
+// SearchHotels is the first step in the hotel search flow.
+// It focuses on filtering hotels by criteria like location and rating,
+// and performs a rapid capacity check to see if a hotel roughly qualifies
+// for the guests without doing an expensive room-by-room combination match.
 func (r *SearchRepository) SearchHotels(ctx context.Context, criteria search.Criteria) ([]search.HotelSearchResult, error) {
 	hotels, err := r.findHotels(ctx, criteria)
 	if err != nil {
@@ -74,6 +75,180 @@ func (r *SearchRepository) SearchHotels(ctx context.Context, criteria search.Cri
 	return results, nil
 }
 
+// SearchHotelRooms acts as the detailed capacity and amenity retrieval for a specific hotel.
+// It also computes the StrictMatch flag, checking if there's enough available rooms
+// to pack all guests WITHOUT EXCEEDING the exactly requested room count.
+func (r *SearchRepository) SearchHotelRooms(ctx context.Context, hotelID string, criteria search.Criteria) (search.HotelRoomSearchResult, error) {
+	hotel, candidates, err := r.loadHotelWithCandidates(ctx, hotelID, criteria)
+	if err != nil {
+		return search.HotelRoomSearchResult{}, err
+	}
+
+	searchCandidates := toSearchRoomCandidates(candidates)
+	minimumRooms := search.MinimumRequiredRooms(searchCandidates, criteria.RoomCount, criteria.Adults, criteria.ChildrenAges, hotel.DefaultChildMaxAge)
+
+	amenityDetailsByRoomID, err := r.roomAmenityDetailsByRoomIDs(ctx, roomIDsFromCandidates(candidates))
+	if err != nil {
+		return search.HotelRoomSearchResult{}, err
+	}
+
+	rooms := buildHotelRoomItems(candidates, amenityDetailsByRoomID)
+
+	return search.HotelRoomSearchResult{
+		HotelID:            hotelID,
+		RequestedRoomCount: criteria.RoomCount,
+		StrictMatch:        minimumRooms > 0 && minimumRooms == criteria.RoomCount,
+		Rooms:              rooms,
+	}, nil
+}
+
+// SearchHotelRoomCombinations generates valid, multi-room arrays where guests
+// can fit appropriately. The limits protect against combinatorial explosion
+// of checking every single possible permutation of available rooms.
+func (r *SearchRepository) SearchHotelRoomCombinations(
+	ctx context.Context,
+	hotelID string,
+	criteria search.Criteria,
+	maxCombinations int,
+) (search.HotelRoomCombinationsResult, error) {
+	hotel, rawCandidates, err := r.loadHotelWithCandidates(ctx, hotelID, criteria)
+	if err != nil {
+		return search.HotelRoomCombinationsResult{}, err
+	}
+
+	if maxCombinations <= 0 {
+		maxCombinations = 5
+	}
+
+	combinations := buildRoomCombinations(
+		toSearchRoomCandidates(rawCandidates),
+		criteria.RoomCount,
+		criteria.Adults,
+		criteria.ChildrenAges,
+		hotel.DefaultChildMaxAge,
+	)
+	combinations = sortAndLimitCombinations(combinations, maxCombinations)
+
+	return search.HotelRoomCombinationsResult{
+		HotelID:            hotelID,
+		RequestedRoomCount: criteria.RoomCount,
+		Combinations:       combinations,
+	}, nil
+}
+
+func (r *SearchRepository) loadHotelWithCandidates(ctx context.Context, hotelID string, criteria search.Criteria) (HotelModel, []roomCandidate, error) {
+	hotel, err := r.findHotelByID(ctx, hotelID)
+	if err != nil {
+		return HotelModel{}, nil, err
+	}
+
+	candidatesByHotel, err := r.loadRoomCandidatesByHotels(ctx, []string{hotelID}, criteria)
+	if err != nil {
+		return HotelModel{}, nil, err
+	}
+
+	return hotel, candidatesByHotel[hotelID], nil
+}
+
+func roomIDsFromCandidates(candidates []roomCandidate) []string {
+	roomIDs := make([]string, len(candidates))
+	for i := range candidates {
+		roomIDs[i] = candidates[i].Room.ID
+	}
+
+	return roomIDs
+}
+
+func buildHotelRoomItems(candidates []roomCandidate, amenityDetailsByRoomID map[string][]roomAmenityDetailRow) []search.HotelRoomSearchItem {
+	rooms := make([]search.HotelRoomSearchItem, len(candidates))
+
+	for i := range candidates {
+		amenities := amenityDetailsByRoomID[candidates[i].Room.ID]
+		amenityIDs := make([]string, len(amenities))
+		amenityCodes := make([]string, len(amenities))
+		amenityNames := make([]string, len(amenities))
+
+		for j := range amenities {
+			amenityIDs[j] = amenities[j].AmenityID
+			amenityCodes[j] = amenities[j].AmenityCode
+			amenityNames[j] = amenities[j].AmenityName
+		}
+
+		rooms[i] = search.HotelRoomSearchItem{
+			RoomID:         candidates[i].Room.ID,
+			Name:           candidates[i].Room.Name,
+			Description:    candidates[i].Room.Description,
+			BasePrice:      candidates[i].Room.BasePrice,
+			MaxAdult:       candidates[i].Room.MaxAdult,
+			MaxChild:       candidates[i].Room.MaxChild,
+			MaxOccupancy:   candidates[i].Room.MaxOccupancy,
+			AvailableCount: candidates[i].AvailableCount,
+			AmenityIDs:     amenityIDs,
+			AmenityCodes:   amenityCodes,
+			AmenityNames:   amenityNames,
+		}
+	}
+
+	sort.Slice(rooms, func(i, j int) bool {
+		if rooms[i].BasePrice == rooms[j].BasePrice {
+			return rooms[i].RoomID < rooms[j].RoomID
+		}
+
+		return rooms[i].BasePrice < rooms[j].BasePrice
+	})
+
+	return rooms
+}
+
+func buildRoomCombinations(candidates []search.RoomCandidate, roomCount, adults int, childrenAges []int, childMaxAge int) []search.RoomCombination {
+	combinations := make([]search.RoomCombination, 0, len(candidates))
+
+	for i := range candidates {
+		quantity, ok := search.RequiredSingleRoomTypeQuantity(candidates[i], roomCount, adults, childrenAges, childMaxAge)
+		if !ok {
+			continue
+		}
+
+		subtotal := float64(quantity) * candidates[i].BasePrice
+		combinations = append(combinations, search.RoomCombination{
+			Items: []search.RoomCombinationItem{{
+				RoomID:    candidates[i].RoomID,
+				RoomName:  candidates[i].Name,
+				Quantity:  quantity,
+				UnitPrice: candidates[i].BasePrice,
+				Subtotal:  subtotal,
+			}},
+			TotalPrice:     subtotal,
+			TotalRooms:     quantity,
+			TotalMaxAdult:  quantity * candidates[i].MaxAdult,
+			TotalMaxChild:  quantity * candidates[i].MaxChild,
+			TotalOccupancy: quantity * candidates[i].MaxOccupancy,
+		})
+	}
+
+	return combinations
+}
+
+func sortAndLimitCombinations(combinations []search.RoomCombination, maxCombinations int) []search.RoomCombination {
+	sort.Slice(combinations, func(i, j int) bool {
+		if combinations[i].TotalPrice == combinations[j].TotalPrice {
+			if combinations[i].TotalRooms == combinations[j].TotalRooms {
+				return combinations[i].Items[0].RoomID < combinations[j].Items[0].RoomID
+			}
+
+			return combinations[i].TotalRooms < combinations[j].TotalRooms
+		}
+
+		return combinations[i].TotalPrice < combinations[j].TotalPrice
+	})
+
+	if len(combinations) > maxCombinations {
+		return combinations[:maxCombinations]
+	}
+
+	return combinations
+}
+
 /*
 evaluateHotelAvailabilityFromCandidates computes final match flags for one hotel:
 - strict: satisfies requested room count.
@@ -104,7 +279,7 @@ func evaluateHotelAvailabilityFromCandidates(
 		Find the minimum number of rooms that can satisfy the party constraints.
 		This supports flexible matches when a strict room count is not possible.
 	*/
-	requiredRoomCount := minimumRequiredRooms(candidates, criteria.RoomCount, criteria.Adults, criteria.ChildrenAges, hotel.DefaultChildMaxAge)
+	requiredRoomCount := search.MinimumRequiredRooms(toSearchRoomCandidates(candidates), criteria.RoomCount, criteria.Adults, criteria.ChildrenAges, hotel.DefaultChildMaxAge)
 	if requiredRoomCount == 0 {
 		return false, false, minPrice, len(candidates)
 	}
@@ -211,17 +386,50 @@ func toEnabledPaymentOptions(options []HotelPaymentOptionModel) []string {
 	return result
 }
 
+func (r *SearchRepository) findHotelByID(ctx context.Context, hotelID string) (HotelModel, error) {
+	var hotel HotelModel
+
+	err := r.db.WithContext(ctx).
+		Where("id = ?", hotelID).
+		First(&hotel).Error
+	if err != nil {
+		if errors.Is(err, gorm.ErrRecordNotFound) {
+			return HotelModel{}, search.ErrHotelNotFound
+		}
+
+		return HotelModel{}, err
+	}
+
+	return hotel, nil
+}
+
 type roomCandidate struct {
 	Room           RoomModel
 	AvailableCount int
 	AmenityIDs     []string
 }
 
-/*
-loadRoomCandidatesByHotels loads active rooms for the target hotels,
-then enriches each room with date-range availability and amenities.
-Result is grouped by hotel for downstream allocation checks.
-*/
+func toSearchRoomCandidates(in []roomCandidate) []search.RoomCandidate {
+	out := make([]search.RoomCandidate, len(in))
+	for i := range in {
+		out[i] = search.RoomCandidate{
+			RoomID:         in[i].Room.ID,
+			Name:           in[i].Room.Name,
+			Description:    in[i].Room.Description,
+			BasePrice:      in[i].Room.BasePrice,
+			MaxAdult:       in[i].Room.MaxAdult,
+			MaxChild:       in[i].Room.MaxChild,
+			MaxOccupancy:   in[i].Room.MaxOccupancy,
+			AvailableCount: in[i].AvailableCount,
+		}
+	}
+
+	return out
+}
+
+// loadRoomCandidatesByHotels finds all active rooms for given hotels, enriches each room
+// with date-range availability/amenities, and batches GORM queries to avoid
+// PostgreSQL's array parameter binding limits (65535 parameters max).
 func (r *SearchRepository) loadRoomCandidatesByHotels(ctx context.Context, hotelIDs []string, criteria search.Criteria) (map[string][]roomCandidate, error) {
 	result := make(map[string][]roomCandidate, len(hotelIDs))
 	if len(hotelIDs) == 0 {
@@ -372,6 +580,42 @@ func (r *SearchRepository) roomAmenityIDs(ctx context.Context, roomIDs []string)
 	return idMap, nil
 }
 
+type roomAmenityDetailRow struct {
+	RoomID      string
+	AmenityID   string
+	AmenityCode string
+	AmenityName string
+}
+
+func (r *SearchRepository) roomAmenityDetailsByRoomIDs(ctx context.Context, roomIDs []string) (map[string][]roomAmenityDetailRow, error) {
+	if len(roomIDs) == 0 {
+		return map[string][]roomAmenityDetailRow{}, nil
+	}
+
+	result := make(map[string][]roomAmenityDetailRow)
+
+	for _, roomIDChunk := range chunkStrings(roomIDs, roomQueryChunkSize) {
+		var rows []roomAmenityDetailRow
+
+		err := r.db.WithContext(ctx).
+			Table("room_amenity_maps AS ram").
+			Select("ram.room_id, ra.id AS amenity_id, ra.code AS amenity_code, ra.name AS amenity_name").
+			Joins("JOIN room_amenities AS ra ON ra.id = ram.amenity_id").
+			Where("ram.room_id IN ?", roomIDChunk).
+			Order("ram.room_id ASC, ra.code ASC, ra.id ASC").
+			Scan(&rows).Error
+		if err != nil {
+			return nil, err
+		}
+
+		for i := range rows {
+			result[rows[i].RoomID] = append(result[rows[i].RoomID], rows[i])
+		}
+	}
+
+	return result, nil
+}
+
 /*
 chunkStrings splits large id lists into fixed-size chunks
 to keep SQL IN queries manageable.
@@ -419,204 +663,4 @@ func hasAllAmenities(roomAmenityIDs, filterAmenityIDs []string) bool {
 	}
 
 	return true
-}
-
-type guestRequest struct {
-	adults       int
-	childrenAges []int
-}
-
-/*
-splitGuestsAcrossRooms builds an initial per-room guest distribution using round-robin.
-This is only a starting shape; final feasibility is validated by backtracking.
-*/
-func splitGuestsAcrossRooms(roomCount, adults int, childrenAges []int) []guestRequest {
-	if roomCount <= 0 {
-		return nil
-	}
-
-	rooms := make([]guestRequest, roomCount)
-	for i := 0; i < roomCount; i++ {
-		rooms[i] = guestRequest{adults: 0, childrenAges: make([]int, 0)}
-	}
-
-	/*
-		Initial distribution is round-robin; feasibility is validated later.
-	*/
-	for i := 0; i < adults; i++ {
-		rooms[i%roomCount].adults++
-	}
-
-	for i := range childrenAges {
-		rooms[i%roomCount].childrenAges = append(rooms[i%roomCount].childrenAges, childrenAges[i])
-	}
-
-	return rooms
-}
-
-/*
-canAllocateRequestedRooms validates whether all room requests can be assigned
-to available room types while respecting occupancy constraints and inventory counts.
-*/
-func canAllocateRequestedRooms(candidates []roomCandidate, requests []guestRequest, childMaxAge int) bool {
-	if len(requests) == 0 {
-		return true
-	}
-
-	if hasAnyUnaccompaniedChildren(requests, childMaxAge) {
-		return false
-	}
-
-	order, compat, ok := buildCompatibilityOrder(candidates, requests, childMaxAge)
-	if !ok {
-		return false
-	}
-
-	remaining := make([]int, len(candidates))
-	for i := range candidates {
-		remaining[i] = candidates[i].AvailableCount
-	}
-
-	/*
-		DFS backtracking over compatible room types with inventory accounting.
-	*/
-	var dfs func(pos int) bool
-
-	dfs = func(pos int) bool {
-		if pos == len(order) {
-			return true
-		}
-
-		reqIdx := order[pos]
-		for _, candidateIdx := range compat[reqIdx] {
-			if remaining[candidateIdx] <= 0 {
-				continue
-			}
-
-			remaining[candidateIdx]--
-
-			if dfs(pos + 1) {
-				return true
-			}
-
-			remaining[candidateIdx]++
-		}
-
-		return false
-	}
-
-	return dfs(0)
-}
-
-/*
-buildCompatibilityOrder precomputes which room candidates can satisfy each request,
-then orders requests from hardest to easiest (fewest compatible candidates first).
-*/
-func buildCompatibilityOrder(candidates []roomCandidate, requests []guestRequest, childMaxAge int) ([]int, [][]int, bool) {
-	order := make([]int, len(requests))
-	for i := range requests {
-		order[i] = i
-	}
-
-	compat := make([][]int, len(requests))
-
-	for i := range requests {
-		for j := range candidates {
-			if candidateCanFit(candidates[j], requests[i], childMaxAge) && candidates[j].AvailableCount > 0 {
-				compat[i] = append(compat[i], j)
-			}
-		}
-
-		if len(compat[i]) == 0 {
-			return nil, nil, false
-		}
-	}
-
-	/*
-		Heuristic: place the most constrained request first to prune backtracking faster.
-	*/
-	sort.Slice(order, func(i, j int) bool { return len(compat[order[i]]) < len(compat[order[j]]) })
-
-	return order, compat, true
-}
-
-/*
-minimumRequiredRooms searches from requested room count upward
-and returns the smallest feasible room count.
-Returns 0 when no feasible allocation exists.
-*/
-func minimumRequiredRooms(
-	candidates []roomCandidate,
-	startRoomCount int,
-	adults int,
-	childrenAges []int,
-	childMaxAge int,
-) int {
-	totalAvailable := 0
-	for i := range candidates {
-		totalAvailable += candidates[i].AvailableCount
-	}
-
-	/*
-		Try from requested room count upward until a feasible allocation is found.
-	*/
-	for roomCount := startRoomCount; roomCount <= totalAvailable; roomCount++ {
-		requests := splitGuestsAcrossRooms(roomCount, adults, childrenAges)
-		if canAllocateRequestedRooms(candidates, requests, childMaxAge) {
-			return roomCount
-		}
-	}
-
-	return 0
-}
-
-/*
-candidateCanFit checks occupancy limits after applying child-age normalization.
-*/
-func candidateCanFit(c roomCandidate, req guestRequest, childMaxAge int) bool {
-	adults, children := normalizeGuest(req, childMaxAge)
-	total := adults + children
-
-	return adults <= c.Room.MaxAdult && children <= c.Room.MaxChild && total <= c.Room.MaxOccupancy
-}
-
-/*
-normalizeGuest converts over-age children into adults based on hotel child policy.
-*/
-func normalizeGuest(req guestRequest, childMaxAge int) (int, int) {
-	adults := req.adults
-	children := 0
-
-	for i := range req.childrenAges {
-		if req.childrenAges[i] > childMaxAge {
-			adults++
-		} else {
-			children++
-		}
-	}
-
-	return adults, children
-}
-
-/*
-hasUnaccompaniedChildren enforces business rule:
-children cannot stay without an adult.
-*/
-func hasUnaccompaniedChildren(req guestRequest, childMaxAge int) bool {
-	adults, children := normalizeGuest(req, childMaxAge)
-
-	return children > 0 && adults == 0
-}
-
-/*
-hasAnyUnaccompaniedChildren checks the no-unaccompanied-children rule across all rooms.
-*/
-func hasAnyUnaccompaniedChildren(requests []guestRequest, childMaxAge int) bool {
-	for i := range requests {
-		if hasUnaccompaniedChildren(requests[i], childMaxAge) {
-			return true
-		}
-	}
-
-	return false
 }
