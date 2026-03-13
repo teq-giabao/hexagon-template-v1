@@ -167,6 +167,12 @@ definitions:
     - name
     - password
     type: object
+  httpserver.CancelBookingRequest:
+    properties:
+      cancellationFee:
+        minimum: 0
+        type: number
+    type: object
   httpserver.ChangePasswordRequest:
     properties:
       currentPassword:
@@ -177,6 +183,25 @@ definitions:
     required:
     - currentPassword
     - newPassword
+    type: object
+  httpserver.CreateBookingRequest:
+    properties:
+      checkInAt:
+        type: string
+      checkOutAt:
+        type: string
+      guestCount:
+        type: integer
+      roomCount:
+        type: integer
+      roomId:
+        type: string
+    required:
+    - checkInAt
+    - checkOutAt
+    - guestCount
+    - roomCount
+    - roomId
     type: object
   httpserver.ForgotPasswordRequest:
     properties:
@@ -400,6 +425,17 @@ definitions:
     - checkOutAt
     - query
     - roomCount
+    type: object
+  httpserver.SelectBookingPaymentOptionRequest:
+    properties:
+      paymentOption:
+        enum:
+        - immediate
+        - pay_at_hotel
+        - deferred
+        type: string
+    required:
+    - paymentOption
     type: object
   httpserver.SendVerifyEmailRequest:
     properties:
@@ -812,6 +848,162 @@ paths:
       summary: Send verify email
       tags:
       - auth
+  /api/bookings:
+    post:
+      consumes:
+      - application/json
+      description: Create a booking, hold inventory, and return available payment
+        options for the hotel.
+      parameters:
+      - description: Booking payload
+        in: body
+        name: payload
+        required: true
+        schema:
+          $ref: '#/definitions/httpserver.CreateBookingRequest'
+      produces:
+      - application/json
+      responses:
+        "201":
+          description: Created
+          schema:
+            $ref: '#/definitions/httpserver.APISuccessResponse'
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/httpserver.APIErrorResponse'
+        "409":
+          description: Conflict
+          schema:
+            $ref: '#/definitions/httpserver.APIErrorResponse'
+      summary: Create Booking
+      tags:
+      - bookings
+  /api/bookings/{booking_id}:
+    get:
+      description: Get booking details.
+      parameters:
+      - description: Booking ID
+        in: path
+        name: booking_id
+        required: true
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/httpserver.APISuccessResponse'
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/httpserver.APIErrorResponse'
+        "404":
+          description: Not Found
+          schema:
+            $ref: '#/definitions/httpserver.APIErrorResponse'
+      summary: Get Booking By ID
+      tags:
+      - bookings
+  /api/bookings/{booking_id}/cancel:
+    post:
+      consumes:
+      - application/json
+      description: Cancel booking if status allows; release inventory and optionally
+        calculate refund.
+      parameters:
+      - description: Booking ID
+        in: path
+        name: booking_id
+        required: true
+        type: string
+      - description: Cancellation data
+        in: body
+        name: payload
+        required: true
+        schema:
+          $ref: '#/definitions/httpserver.CancelBookingRequest'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/httpserver.APISuccessResponse'
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/httpserver.APIErrorResponse'
+        "409":
+          description: Conflict
+          schema:
+            $ref: '#/definitions/httpserver.APIErrorResponse'
+      summary: Cancel Booking
+      tags:
+      - bookings
+  /api/bookings/{booking_id}/confirm-payment:
+    post:
+      description: Mark booking payment as successful and confirm the booking.
+      parameters:
+      - description: Booking ID
+        in: path
+        name: booking_id
+        required: true
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/httpserver.APISuccessResponse'
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/httpserver.APIErrorResponse'
+        "409":
+          description: Conflict
+          schema:
+            $ref: '#/definitions/httpserver.APIErrorResponse'
+      summary: Confirm Booking Payment
+      tags:
+      - bookings
+  /api/bookings/{booking_id}/payment-option:
+    post:
+      consumes:
+      - application/json
+      description: Select payment option for a pending booking.
+      parameters:
+      - description: Booking ID
+        in: path
+        name: booking_id
+        required: true
+        type: string
+      - description: Payment option
+        in: body
+        name: payload
+        required: true
+        schema:
+          $ref: '#/definitions/httpserver.SelectBookingPaymentOptionRequest'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/httpserver.APISuccessResponse'
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/httpserver.APIErrorResponse'
+        "409":
+          description: Conflict
+          schema:
+            $ref: '#/definitions/httpserver.APIErrorResponse'
+      summary: Select Booking Payment Option
+      tags:
+      - bookings
   /api/hotels:
     get:
       description: Get all hotels
