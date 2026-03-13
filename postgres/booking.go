@@ -47,74 +47,44 @@ func NewBookingRepository(db *gorm.DB) *BookingRepository {
 
 func (r *BookingRepository) CreatePending(ctx context.Context, req booking.CreateRequest, holdDuration time.Duration) (booking.Checkout, error) {
 	var checkout booking.Checkout
-	var room RoomModel
 
-	nights := nightsBetween(req.CheckInDate, req.CheckOutDate)
-	if nights <= 0 {
-		return checkout, booking.ErrCheckOutBeforeCheckIn
+	nights, err := ensureValidNights(req.CheckInDate, req.CheckOutDate)
+	if err != nil {
+		return checkout, err
 	}
 
 	holdUntil := time.Now().Add(holdDuration)
 
-	err := r.db.WithContext(ctx).Transaction(func(tx *gorm.DB) error {
-		if err := tx.Where("id = ?", req.RoomID).First(&room).Error; err != nil {
-			if errors.Is(err, gorm.ErrRecordNotFound) {
-				return booking.ErrRoomNotFound
-			}
-			return err
-		}
-
-		if room.Status != "active" {
-			return booking.ErrRoomUnavailable
-		}
-
-		inventories, err := lockRoomInventories(tx, req.RoomID, req.CheckInDate, req.CheckOutDate)
+	err = r.db.WithContext(ctx).Transaction(func(tx *gorm.DB) error {
+		room, err := loadRoomByID(tx, req.RoomID)
 		if err != nil {
 			return err
 		}
 
-		if len(inventories) != nights {
-			return booking.ErrRoomUnavailable
+		if err := ensureRoomActive(room); err != nil {
+			return err
 		}
 
-		for i := range inventories {
-			available := inventories[i].TotalInventory - inventories[i].HeldInventory - inventories[i].BookedInventory
-			if available < req.RoomCount {
-				return booking.ErrRoomUnavailable
-			}
+		if err := ensureInventoryAvailable(tx, req.RoomID, req.CheckInDate, req.CheckOutDate, req.RoomCount, nights); err != nil {
+			return err
 		}
 
 		if err := updateHeldInventory(tx, req.RoomID, req.CheckInDate, req.CheckOutDate, req.RoomCount); err != nil {
 			return err
 		}
 
-		nightly := room.BasePrice
-		total := nightly * float64(nights) * float64(req.RoomCount)
-
-		model := BookingModel{
-			HotelID:       room.HotelID,
-			RoomID:        room.ID,
-			CheckInDate:   req.CheckInDate,
-			CheckOutDate:  req.CheckOutDate,
-			Nights:        nights,
-			RoomCount:     req.RoomCount,
-			GuestCount:    req.GuestCount,
-			NightlyPrice:  nightly,
-			TotalPrice:    total,
-			Status:        string(booking.BookingStatusPending),
-			PaymentStatus: string(booking.PaymentStatusUnpaid),
-			HoldExpiresAt: &holdUntil,
-		}
-
+		model := buildPendingBookingModel(room, req, nights, holdUntil)
 		if err := tx.Create(&model).Error; err != nil {
 			return err
 		}
 
 		checkout.Booking = toDomainBooking(model)
+
 		options, err := enabledPaymentOptionsWithDB(tx, model.HotelID)
 		if err != nil {
 			return err
 		}
+
 		checkout.PaymentOptions = options
 
 		return nil
@@ -132,6 +102,7 @@ func (r *BookingRepository) GetByID(ctx context.Context, id string) (booking.Boo
 		if errors.Is(err, gorm.ErrRecordNotFound) {
 			return booking.Booking{}, booking.ErrBookingNotFound
 		}
+
 		return booking.Booking{}, err
 	}
 
@@ -142,66 +113,16 @@ func (r *BookingRepository) SetPaymentOption(ctx context.Context, id string, opt
 	moment := time.Now()
 
 	err := r.db.WithContext(ctx).Transaction(func(tx *gorm.DB) error {
-		var model BookingModel
-		if err := tx.Clauses(clause.Locking{Strength: "UPDATE"}).Where("id = ?", id).First(&model).Error; err != nil {
-			if errors.Is(err, gorm.ErrRecordNotFound) {
-				return booking.ErrBookingNotFound
-			}
+		model, err := loadBookingForUpdate(tx, id)
+		if err != nil {
 			return err
 		}
 
-		switch booking.BookingStatus(model.Status) {
-		case booking.BookingStatusExpired:
-			return booking.ErrBookingExpired
-		case booking.BookingStatusCancelled:
-			return booking.ErrBookingCancelled
-		case booking.BookingStatusConfirmed:
-			return booking.ErrBookingNotPending
-		case booking.BookingStatusPending:
-			// ok
-		default:
-			return booking.ErrBookingNotPending
+		if err := ensurePendingNotExpired(tx, model, moment); err != nil {
+			return err
 		}
 
-		if model.HoldExpiresAt != nil && !model.HoldExpiresAt.After(moment) {
-			if err := expirePendingBooking(tx, model, moment); err != nil {
-				return err
-			}
-			return booking.ErrBookingExpired
-		}
-
-		updates := map[string]interface{}{
-			"payment_option": string(option),
-			"updated_at":     moment,
-		}
-
-		switch option {
-		case hotel.PaymentOptionImmediate:
-			updates["payment_deadline"] = model.HoldExpiresAt
-			if err := tx.Model(&BookingModel{}).Where("id = ?", model.ID).Updates(updates).Error; err != nil {
-				return err
-			}
-		case hotel.PaymentOptionPayAtHotel, hotel.PaymentOptionDeferred:
-			if err := moveHeldToBooked(tx, model.RoomID, model.CheckInDate, model.CheckOutDate, model.RoomCount); err != nil {
-				return err
-			}
-
-			updates["status"] = string(booking.BookingStatusConfirmed)
-			updates["hold_expires_at"] = nil
-			if option == hotel.PaymentOptionDeferred {
-				updates["payment_deadline"] = paymentDeadline
-			} else {
-				updates["payment_deadline"] = nil
-			}
-
-			if err := tx.Model(&BookingModel{}).Where("id = ?", model.ID).Updates(updates).Error; err != nil {
-				return err
-			}
-		default:
-			return booking.ErrPaymentOptionInvalid
-		}
-
-		return nil
+		return applyPaymentOption(tx, model, option, paymentDeadline, moment)
 	})
 	if err != nil {
 		return booking.Booking{}, err
@@ -219,6 +140,7 @@ func (r *BookingRepository) MarkPaid(ctx context.Context, id string) (booking.Bo
 			if errors.Is(err, gorm.ErrRecordNotFound) {
 				return booking.ErrBookingNotFound
 			}
+
 			return err
 		}
 
@@ -238,6 +160,7 @@ func (r *BookingRepository) MarkPaid(ctx context.Context, id string) (booking.Bo
 				if err := expirePendingBooking(tx, model, moment); err != nil {
 					return err
 				}
+
 				return booking.ErrBookingExpired
 			}
 
@@ -266,36 +189,17 @@ func (r *BookingRepository) Cancel(ctx context.Context, id string, cancellationF
 	moment := time.Now()
 
 	err := r.db.WithContext(ctx).Transaction(func(tx *gorm.DB) error {
-		var model BookingModel
-		if err := tx.Clauses(clause.Locking{Strength: "UPDATE"}).Where("id = ?", id).First(&model).Error; err != nil {
-			if errors.Is(err, gorm.ErrRecordNotFound) {
-				return booking.ErrBookingNotFound
-			}
+		model, err := loadBookingForUpdate(tx, id)
+		if err != nil {
 			return err
 		}
 
-		switch booking.BookingStatus(model.Status) {
-		case booking.BookingStatusExpired:
-			return booking.ErrBookingExpired
-		case booking.BookingStatusCancelled:
-			return booking.ErrBookingCancelled
+		if err := ensureCancelableStatus(model); err != nil {
+			return err
 		}
 
-		if booking.BookingStatus(model.Status) == booking.BookingStatusPending {
-			if model.HoldExpiresAt != nil && !model.HoldExpiresAt.After(moment) {
-				if err := expirePendingBooking(tx, model, moment); err != nil {
-					return err
-				}
-				return booking.ErrBookingExpired
-			}
-
-			if err := updateHeldInventory(tx, model.RoomID, model.CheckInDate, model.CheckOutDate, -model.RoomCount); err != nil {
-				return err
-			}
-		} else if booking.BookingStatus(model.Status) == booking.BookingStatusConfirmed {
-			if err := updateBookedInventory(tx, model.RoomID, model.CheckInDate, model.CheckOutDate, -model.RoomCount); err != nil {
-				return err
-			}
+		if err := releaseInventoryForCancel(tx, model, moment); err != nil {
+			return err
 		}
 
 		refund := 0.0
@@ -304,6 +208,7 @@ func (r *BookingRepository) Cancel(ctx context.Context, id string, cancellationF
 			if refund < 0 {
 				refund = 0
 			}
+
 			model.PaymentStatus = string(booking.PaymentStatusRefunded)
 		}
 
@@ -337,11 +242,14 @@ func (r *BookingRepository) ExpireStale(ctx context.Context, now time.Time) (int
 			if err := updateHeldInventory(tx, pending[i].RoomID, pending[i].CheckInDate, pending[i].CheckOutDate, -pending[i].RoomCount); err != nil {
 				return err
 			}
+
 			pending[i].Status = string(booking.BookingStatusExpired)
 			pending[i].UpdatedAt = now
+
 			if err := tx.Save(&pending[i]).Error; err != nil {
 				return err
 			}
+
 			expiredCount++
 		}
 
@@ -356,11 +264,14 @@ func (r *BookingRepository) ExpireStale(ctx context.Context, now time.Time) (int
 			if err := updateBookedInventory(tx, overdue[i].RoomID, overdue[i].CheckInDate, overdue[i].CheckOutDate, -overdue[i].RoomCount); err != nil {
 				return err
 			}
+
 			overdue[i].Status = string(booking.BookingStatusExpired)
 			overdue[i].UpdatedAt = now
+
 			if err := tx.Save(&overdue[i]).Error; err != nil {
 				return err
 			}
+
 			expiredCount++
 		}
 
@@ -371,6 +282,176 @@ func (r *BookingRepository) ExpireStale(ctx context.Context, now time.Time) (int
 	}
 
 	return expiredCount, nil
+}
+
+func ensureValidNights(checkIn, checkOut time.Time) (int, error) {
+	nights := nightsBetween(checkIn, checkOut)
+	if nights <= 0 {
+		return 0, booking.ErrCheckOutBeforeCheckIn
+	}
+
+	return nights, nil
+}
+
+func loadRoomByID(tx *gorm.DB, roomID string) (RoomModel, error) {
+	var room RoomModel
+	if err := tx.Where("id = ?", roomID).First(&room).Error; err != nil {
+		if errors.Is(err, gorm.ErrRecordNotFound) {
+			return RoomModel{}, booking.ErrRoomNotFound
+		}
+
+		return RoomModel{}, err
+	}
+
+	return room, nil
+}
+
+func ensureRoomActive(room RoomModel) error {
+	if room.Status != "active" {
+		return booking.ErrRoomUnavailable
+	}
+
+	return nil
+}
+
+func ensureInventoryAvailable(tx *gorm.DB, roomID string, checkIn, checkOut time.Time, roomCount, nights int) error {
+	inventories, err := lockRoomInventories(tx, roomID, checkIn, checkOut)
+	if err != nil {
+		return err
+	}
+
+	if len(inventories) != nights {
+		return booking.ErrRoomUnavailable
+	}
+
+	for i := range inventories {
+		available := inventories[i].TotalInventory - inventories[i].HeldInventory - inventories[i].BookedInventory
+		if available < roomCount {
+			return booking.ErrRoomUnavailable
+		}
+	}
+
+	return nil
+}
+
+func buildPendingBookingModel(room RoomModel, req booking.CreateRequest, nights int, holdUntil time.Time) BookingModel {
+	nightly := room.BasePrice
+	total := nightly * float64(nights) * float64(req.RoomCount)
+
+	return BookingModel{
+		HotelID:       room.HotelID,
+		RoomID:        room.ID,
+		CheckInDate:   req.CheckInDate,
+		CheckOutDate:  req.CheckOutDate,
+		Nights:        nights,
+		RoomCount:     req.RoomCount,
+		GuestCount:    req.GuestCount,
+		NightlyPrice:  nightly,
+		TotalPrice:    total,
+		Status:        string(booking.BookingStatusPending),
+		PaymentStatus: string(booking.PaymentStatusUnpaid),
+		HoldExpiresAt: &holdUntil,
+	}
+}
+
+func loadBookingForUpdate(tx *gorm.DB, id string) (BookingModel, error) {
+	var model BookingModel
+	if err := tx.Clauses(clause.Locking{Strength: "UPDATE"}).Where("id = ?", id).First(&model).Error; err != nil {
+		if errors.Is(err, gorm.ErrRecordNotFound) {
+			return BookingModel{}, booking.ErrBookingNotFound
+		}
+
+		return BookingModel{}, err
+	}
+
+	return model, nil
+}
+
+func ensurePendingNotExpired(tx *gorm.DB, model BookingModel, now time.Time) error {
+	switch booking.BookingStatus(model.Status) {
+	case booking.BookingStatusExpired:
+		return booking.ErrBookingExpired
+	case booking.BookingStatusCancelled:
+		return booking.ErrBookingCancelled
+	case booking.BookingStatusConfirmed:
+		return booking.ErrBookingNotPending
+	case booking.BookingStatusPending:
+		// ok
+	default:
+		return booking.ErrBookingNotPending
+	}
+
+	if model.HoldExpiresAt != nil && !model.HoldExpiresAt.After(now) {
+		if err := expirePendingBooking(tx, model, now); err != nil {
+			return err
+		}
+
+		return booking.ErrBookingExpired
+	}
+
+	return nil
+}
+
+func applyPaymentOption(tx *gorm.DB, model BookingModel, option hotel.PaymentOption, paymentDeadline *time.Time, now time.Time) error {
+	updates := map[string]interface{}{
+		"payment_option": string(option),
+		"updated_at":     now,
+	}
+
+	switch option {
+	case hotel.PaymentOptionImmediate:
+		updates["payment_deadline"] = model.HoldExpiresAt
+		return tx.Model(&BookingModel{}).Where("id = ?", model.ID).Updates(updates).Error
+	case hotel.PaymentOptionPayAtHotel, hotel.PaymentOptionDeferred:
+		if err := moveHeldToBooked(tx, model.RoomID, model.CheckInDate, model.CheckOutDate, model.RoomCount); err != nil {
+			return err
+		}
+
+		updates["status"] = string(booking.BookingStatusConfirmed)
+
+		updates["hold_expires_at"] = nil
+		if option == hotel.PaymentOptionDeferred {
+			updates["payment_deadline"] = paymentDeadline
+		} else {
+			updates["payment_deadline"] = nil
+		}
+
+		return tx.Model(&BookingModel{}).Where("id = ?", model.ID).Updates(updates).Error
+	default:
+		return booking.ErrPaymentOptionInvalid
+	}
+}
+
+func ensureCancelableStatus(model BookingModel) error {
+	switch booking.BookingStatus(model.Status) {
+	case booking.BookingStatusExpired:
+		return booking.ErrBookingExpired
+	case booking.BookingStatusCancelled:
+		return booking.ErrBookingCancelled
+	}
+
+	return nil
+}
+
+func releaseInventoryForCancel(tx *gorm.DB, model BookingModel, now time.Time) error {
+	status := booking.BookingStatus(model.Status)
+	if status == booking.BookingStatusPending {
+		if model.HoldExpiresAt != nil && !model.HoldExpiresAt.After(now) {
+			if err := expirePendingBooking(tx, model, now); err != nil {
+				return err
+			}
+
+			return booking.ErrBookingExpired
+		}
+
+		return updateHeldInventory(tx, model.RoomID, model.CheckInDate, model.CheckOutDate, -model.RoomCount)
+	}
+
+	if status == booking.BookingStatusConfirmed {
+		return updateBookedInventory(tx, model.RoomID, model.CheckInDate, model.CheckOutDate, -model.RoomCount)
+	}
+
+	return nil
 }
 
 func enabledPaymentOptionsWithDB(db *gorm.DB, hotelID string) ([]hotel.PaymentOption, error) {
@@ -428,6 +509,7 @@ func nightsBetween(checkIn, checkOut time.Time) int {
 	if nights <= 0 {
 		return 0
 	}
+
 	return nights
 }
 

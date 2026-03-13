@@ -57,6 +57,7 @@ func TestFlexibleBool_UnmarshalJSON(t *testing.T) {
 	for _, tc := range cases {
 		t.Run(tc.name, func(t *testing.T) {
 			var b flexibleBool
+
 			err := json.Unmarshal([]byte(tc.in), &b)
 			require.NoError(t, err)
 			assert.Equal(t, tc.want, bool(b))
@@ -66,6 +67,7 @@ func TestFlexibleBool_UnmarshalJSON(t *testing.T) {
 
 func TestFlexibleBool_UnmarshalJSON_Invalid(t *testing.T) {
 	var b flexibleBool
+
 	err := json.Unmarshal([]byte("\"notabool\""), &b)
 	assert.Error(t, err)
 }

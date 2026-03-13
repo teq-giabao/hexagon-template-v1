@@ -86,7 +86,7 @@ func TestSearchRoutes_SearchHotelRooms_MissingHotelID(t *testing.T) {
 	body, err := json.Marshal(payload)
 	require.NoError(t, err)
 
-	req := httptest.NewRequest(http.MethodPost, "/api/search/hotels//rooms", bytes.NewReader(body))
+	req := httptest.NewRequest(http.MethodPost, "/api/search/hotels/%20/rooms", bytes.NewReader(body))
 	req.Header.Set("Content-Type", "application/json")
 
 	rec := httptest.NewRecorder()

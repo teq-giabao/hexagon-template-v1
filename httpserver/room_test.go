@@ -104,7 +104,7 @@ func TestRoomRoutes_AddInventory_MissingRoomID(t *testing.T) {
 	body, err := json.Marshal(payload)
 	require.NoError(t, err)
 
-	req := httptest.NewRequest(http.MethodPost, "/api/rooms//inventories", bytes.NewReader(body))
+	req := httptest.NewRequest(http.MethodPost, "/api/rooms/%20/inventories", bytes.NewReader(body))
 	req.Header.Set("Content-Type", "application/json")
 
 	rec := httptest.NewRecorder()
