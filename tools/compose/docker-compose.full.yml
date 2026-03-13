@@ -1,0 +1,103 @@
+services:
+  db:
+    platform: linux/amd64
+    image: postgres:15-alpine3.18
+    environment:
+      POSTGRES_USER: ${DB_USER}
+      POSTGRES_PASSWORD: ${DB_PASS}
+      POSTGRES_DB: ${DB_NAME}
+    ports:
+      - "${DB_PORT}:5432"
+    networks:
+      - teqnet
+    volumes:
+      - teqgo-db:/var/lib/postgresql
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${DB_USER} -d ${DB_NAME}"]
+      interval: 5s
+      timeout: 3s
+      retries: 20
+
+  migrate:
+    build:
+      context: ../..
+      dockerfile: cmd/migrate/Dockerfile
+    environment:
+      APP_ENV: ${APP_ENV}
+      DB_HOST: db
+      DB_PORT: 5432
+      DB_USER: ${DB_USER}
+      DB_PASS: ${DB_PASS}
+      DB_NAME: ${DB_NAME}
+      ENABLE_SSL: ${ENABLE_SSL}
+    depends_on:
+      db:
+        condition: service_healthy
+    networks:
+      - teqnet
+
+  seed:
+    build:
+      context: ../..
+      dockerfile: cmd/seed/Dockerfile
+    environment:
+      APP_ENV: ${APP_ENV}
+      DB_HOST: db
+      DB_PORT: 5432
+      DB_USER: ${DB_USER}
+      DB_PASS: ${DB_PASS}
+      DB_NAME: ${DB_NAME}
+      ENABLE_SSL: ${ENABLE_SSL}
+    depends_on:
+      db:
+        condition: service_healthy
+    networks:
+      - teqnet
+
+  api:
+    build:
+      context: ../..
+      dockerfile: cmd/httpserver/Dockerfile
+    environment:
+      APP_ENV: ${APP_ENV}
+      PORT: ${PORT}
+      SENTRY_DSN: ${SENTRY_DSN}
+      ALLOW_ORIGINS: ${ALLOW_ORIGINS}
+      DB_HOST: db
+      DB_PORT: 5432
+      DB_USER: ${DB_USER}
+      DB_PASS: ${DB_PASS}
+      DB_NAME: ${DB_NAME}
+      ENABLE_SSL: ${ENABLE_SSL}
+      AUTH_JWT_SECRET: ${AUTH_JWT_SECRET}
+      AUTH_TOKEN_TTL: ${AUTH_TOKEN_TTL}
+      AUTH_REFRESH_TTL: ${AUTH_REFRESH_TTL}
+      AUTH_GOOGLE_CLIENT_ID: ${AUTH_GOOGLE_CLIENT_ID}
+      AUTH_GOOGLE_CLIENT_SECRET: ${AUTH_GOOGLE_CLIENT_SECRET}
+      AUTH_GOOGLE_REDIRECT_URL: ${AUTH_GOOGLE_REDIRECT_URL}
+      AUTH_RESET_PASSWORD_URL: ${AUTH_RESET_PASSWORD_URL}
+      AUTH_VERIFY_EMAIL_URL: ${AUTH_VERIFY_EMAIL_URL}
+      AUTH_RESEND_API_KEY: ${AUTH_RESEND_API_KEY}
+      AUTH_RESEND_FROM_EMAIL: ${AUTH_RESEND_FROM_EMAIL}
+      AUTH_RESEND_FROM_NAME: ${AUTH_RESEND_FROM_NAME}
+      S3_REGION: ${S3_REGION}
+      S3_BUCKET: ${S3_BUCKET}
+      S3_BASE_URL: ${S3_BASE_URL}
+      S3_PREFIX: ${S3_PREFIX}
+      S3_ENDPOINT: ${S3_ENDPOINT}
+      S3_ACCESS_KEY_ID: ${S3_ACCESS_KEY_ID}
+      S3_SECRET_ACCESS_KEY: ${S3_SECRET_ACCESS_KEY}
+      S3_SESSION_TOKEN: ${S3_SESSION_TOKEN}
+    depends_on:
+      db:
+        condition: service_healthy
+    ports:
+      - "${PORT}:8088"
+    networks:
+      - teqnet
+
+volumes:
+  teqgo-db:
+
+networks:
+  teqnet:

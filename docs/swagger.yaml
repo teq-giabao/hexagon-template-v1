@@ -1367,8 +1367,6 @@ paths:
             additionalProperties:
               type: string
             type: object
-      security:
-      - BearerAuth: []
       summary: Health Check
       tags:
       - health

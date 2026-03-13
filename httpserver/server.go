@@ -2,6 +2,7 @@ package httpserver
 
 import (
 	"context"
+	"log/slog"
 	"net/http"
 
 	"hexagon/auth"
@@ -84,9 +85,47 @@ func Default(cfg *config.Config) *Server {
 }
 
 func (s *Server) RegisterGlobalMiddlewares() {
+	s.Router.Use(middleware.RequestID())
+
+	s.Router.Use(middleware.RequestLoggerWithConfig(middleware.RequestLoggerConfig{
+		LogRequestID:    true,
+		LogRemoteIP:     true,
+		LogHost:         true,
+		LogMethod:       true,
+		LogURI:          true,
+		LogProtocol:     true,
+		LogUserAgent:    true,
+		LogStatus:       true,
+		LogError:        true,
+		LogLatency:      true,
+		LogResponseSize: true,
+		LogValuesFunc: func(_ echo.Context, v middleware.RequestLoggerValues) error {
+			attrs := []any{
+				"type", "access",
+				"request_id", v.RequestID,
+				"remote_ip", v.RemoteIP,
+				"host", v.Host,
+				"method", v.Method,
+				"uri", v.URI,
+				"protocol", v.Protocol,
+				"user_agent", v.UserAgent,
+				"status", v.Status,
+				"latency", v.Latency.String(),
+				"bytes_out", v.ResponseSize,
+			}
+
+			if v.Error != nil {
+				attrs = append(attrs, "error", v.Error.Error())
+			}
+
+			slog.Info("http_request", attrs...)
+
+			return nil
+		},
+	}))
+
 	s.Router.Use(middleware.Recover())
 	s.Router.Use(middleware.Secure())
-	s.Router.Use(middleware.RequestID())
 	s.Router.Use(middleware.Gzip())
 	s.Router.Use(sentryecho.New(sentryecho.Options{Repanic: true}))
 	s.Router.Use(middleware.RateLimiter(middleware.NewRateLimiterMemoryStore(20)))

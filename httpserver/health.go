@@ -9,7 +9,6 @@ func (s *Server) RegisterHealthRoutes() {
 // healthCheck godoc
 // @Summary Health Check
 // @Description Check if server is alive
-// @Security BearerAuth
 // @Tags health
 // @Success 200 {object} map[string]string
 // @Router /healthcheck [get]

@@ -1,6 +1,11 @@
 # Project Probation: Hotel Booking System
 
-A Go REST API robust backend for a Hotel Booking System following Hexagonal Architecture principles. It features user authentication (register/login), hotel and room search, real-time availability checking, booking management, and simulated payments. The system is engineered to guarantee strict data consistency and entirely prevent double bookings under any concurrent scenarios, utilizing PostgreSQL persistence, Sentry error reporting, and comprehensive testing with testcontainers.
+A Go REST API backend for a Hotel Booking System following Hexagonal Architecture.
+
+This README is optimized for two practical goals:
+
+1. Run the source locally without friction.
+2. Manually verify and review core features with clear API checks.
 
 ---
 
@@ -10,6 +15,8 @@ A Go REST API robust backend for a Hotel Booking System following Hexagonal Arch
 - [Development](#development)
 - [Configuration](#configuration)
 - [Running the Server](#running-the-server)
+- [API Documentation (Swagger)](#api-documentation-swagger)
+- [Feature Review (Manual QA)](#feature-review-manual-qa)
 - [Database Migrations](#database-migrations)
 - [Testing](#testing)
 - [Linting](#linting)
@@ -33,23 +40,23 @@ graph TB
         DB[PostgreSQL<br/>GORM<br/>postgres/]
         PKG[Cross-cutting<br/>Config, Sentry<br/>pkg/]
     end
-    
+
     subgraph Hexagon["(the hexagon)"]
         subgraph "Application"
-            UC[Use Cases<br/>Business Logic<br/>contact/usecase.go]
+        UC[Use Cases<br/>Business Logic<br/>user/usecase.go]
         end
-        
+
         subgraph "Domain"
-            ENT[Contact Entity<br/>Validation<br/>contact/contact.go]
+        ENT[Business Entities<br/>Validation<br/>user/user.go]
             INTF[Interfaces<br/>Service<br/>Repository]
         end
     end
-    
+
     HTTP -->|depends on| UC
     DB -->|implements| INTF
     UC -->|uses| INTF
     UC -->|validates| ENT
-    
+
     style ENT fill:#e1f5ff
     style INTF fill:#e1f5ff
     style UC fill:#fff4e1
@@ -59,6 +66,7 @@ graph TB
 ```
 
 **Layers:**
+
 - **Domain Layer** ([`user/`](user/)): User entity, validation logic, and interface definitions (`Service`, `Repository`)
 - **Application Layer** ([`user/usecase.go`](user/usecase.go), [`auth/usecase.go`](auth/usecase.go)): Business logic implementation (user management + authentication)
 - **Infrastructure Layer**: Adapters for external dependencies
@@ -67,6 +75,7 @@ graph TB
   - [`pkg/`](pkg/) - Cross-cutting concerns (config, sentry, logging, hashing, jwt, oauth)
 
 **Key Principles:**
+
 - Dependencies point inward: Infrastructure depends on domain, never the reverse
 - Domain defines interfaces; infrastructure implements them
 - Dependency injection throughout the stack
@@ -86,32 +95,50 @@ graph TB
 
 ### Quick Start
 
-1. **Initialize the project:**
-   ```shell
-   go mod download
-   ```
+1. Install prerequisites: Go, Docker, Make.
 
-2. **Start local database:**
-   ```shell
-   make local-db
-   ```
-   This starts PostgreSQL in Docker on port `33062`.
+2. Initialize dependencies:
 
-3. **Run database migrations:**
-   ```shell
-   make db/migrate
-   ```
+```shell
+go mod download
+```
 
-4. **Start the server with hot reload:**
-   ```shell
-   make run
-   ```
-   The server will start on port `8088` (default) and auto-reload on code changes.
+3. Create `.env` (see [Configuration](#configuration)).
 
-5. **Run tests:**
-   ```shell
-   make test
-   ```
+Recommended: keep a local template file (for example `.env.example`) and copy it to `.env` before running.
+
+4. Start local database:
+
+```shell
+make local-db
+```
+
+5. Run migrations:
+
+```shell
+make db/migrate
+```
+
+6. Seed demo data for manual API review:
+
+```shell
+make db/seed
+```
+
+This creates one demo hotel in `ha noi` with room inventory for `2026-04-01` to `2026-04-03`.
+
+7. Start server with hot reload:
+
+```shell
+make run
+```
+
+8. Run CI-equivalent checks before pushing:
+
+```shell
+make test/ci
+make lint
+```
 
 ### Development Workflow
 
@@ -177,11 +204,13 @@ S3_SESSION_TOKEN=
 ```
 
 Notes:
+
 - If `S3_ENDPOINT` is set and `S3_BASE_URL` is empty, upload URLs are returned as `<S3_ENDPOINT>/<S3_BUCKET>/<object-key>` (works for LocalStack).
 
 ### Configuration Loading
 
 The application uses `envconfig` to load environment variables:
+
 - Automatically loads `.env` file if present (via `godotenv`)
 - Falls back to system environment variables
 - Validates required fields on startup
@@ -193,6 +222,7 @@ The application uses `envconfig` to load environment variables:
 The main entrypoint is [`cmd/httpserver/main.go`](cmd/httpserver/main.go).
 
 **Server Stack:**
+
 - **Framework:** Echo (high performance HTTP router)
 - **Middleware:** CORS, Gzip, Request ID, Recover, Security headers, Sentry
 - **Error Handling:** Custom error handler maps domain errors to HTTP status codes
@@ -201,6 +231,7 @@ The main entrypoint is [`cmd/httpserver/main.go`](cmd/httpserver/main.go).
   - `EINTERNAL` → 500 Internal Server Error
 
 **Server Initialization:**
+
 ```go
 // 1. Load configuration
 cfg, _ := config.LoadConfig()
@@ -233,6 +264,112 @@ server.Start()
 
 Default port is `8088` (configurable via `PORT` environment variable).
 
+Quick health check:
+
+```shell
+curl -i http://localhost:8088/health
+```
+
+---
+
+## API Documentation (Swagger)
+
+After starting the server, open Swagger UI at:
+
+- `http://localhost:8088/swagger/index.html`
+
+If `PORT` is changed in `.env`, use:
+
+- `http://localhost:<PORT>/swagger/index.html`
+
+If Swagger docs are outdated, regenerate:
+
+```shell
+make swag
+```
+
+---
+
+## Feature Review (Manual QA)
+
+Use this section to quickly review behavior after the app is running.
+
+> Note: Search endpoints require real hotel/room/inventory data in DB. Empty data will return valid but empty results.
+>
+> This repository includes a built-in demo seed command: `make db/seed`.
+> Run it after `make db/migrate` to test the sample search payloads below immediately.
+
+### 1) Search hotels (offset pagination)
+
+```shell
+curl -X POST http://localhost:8088/api/search/hotels \
+  -H "Content-Type: application/json" \
+  -d '{
+    "query": "ha noi",
+    "checkInAt": "2026-04-01",
+    "checkOutAt": "2026-04-03",
+    "roomCount": 2,
+    "adultCount": 3,
+    "childrenAges": [5],
+    "ratingMin": 4,
+    "offset": 0,
+    "pageSize": 10
+  }'
+```
+
+Expected checks:
+
+- `result.data.hotels` exists.
+- `result.data.pagination` includes `page`, `pageSize`, `offset`, `total`, `totalPages`.
+- Each hotel has `minPrice`, `availableRoomCount`, `matchesRequested`, `flexibleMatch`.
+
+### 2) Search rooms for one hotel
+
+Use a real `hotel_id` from step 1 (`result.data.hotels[*].hotelId`).
+
+```shell
+curl -X POST http://localhost:8088/api/search/hotels/{hotel_id}/rooms \
+  -H "Content-Type: application/json" \
+  -d '{
+    "checkInAt": "2026-04-01",
+    "checkOutAt": "2026-04-03",
+    "roomCount": 2,
+    "adultCount": 3,
+    "childrenAges": [5],
+    "amenityIds": []
+  }'
+```
+
+Expected checks:
+
+- Response contains `hotelId`, `requestedRoomCount`, `strictMatch`.
+- `rooms[]` contains availability and capacity fields.
+- Amenity fields are populated when available.
+
+### 3) Search room combinations for one hotel
+
+Use the same `hotel_id` collected from step 1.
+
+```shell
+curl -X POST http://localhost:8088/api/search/hotels/{hotel_id}/room-combinations \
+  -H "Content-Type: application/json" \
+  -d '{
+    "checkInAt": "2026-04-01",
+    "checkOutAt": "2026-04-03",
+    "roomCount": 1,
+    "adultCount": 5,
+    "childrenAges": [5],
+    "amenityIds": [],
+    "maxCombinations": 5
+  }'
+```
+
+Expected checks:
+
+- `combinations[]` exists.
+- Each combination includes `items`, `totalPrice`, `totalRooms`, `totalOccupancy`.
+- Number of results does not exceed `maxCombinations`.
+
 ---
 
 ## Database Migrations
@@ -242,6 +379,7 @@ Migration files are located in [`migrations/`](migrations/) and managed using `s
 ### Configuration
 
 Database migration settings are in [`dbconfig.yml`](dbconfig.yml):
+
 - Environment: `development`
 - Migration directory: `migrations/`
 - Database connection configured via environment variables
@@ -249,13 +387,23 @@ Database migration settings are in [`dbconfig.yml`](dbconfig.yml):
 ### Commands
 
 **Run migrations:**
+
 ```shell
 make db/migrate
 # or directly:
 go run ./cmd/migrate
 ```
 
+**Seed demo data (manual QA):**
+
+```shell
+make db/seed
+```
+
+This command is idempotent for the demo records and can be re-run safely in local development.
+
 **Create a new migration:**
+
 ```shell
 sql-migrate new -env="development" create-your-migration-name
 ```
@@ -271,17 +419,22 @@ The project includes comprehensive unit and integration tests using `testify` fo
 ### Test Strategy
 
 **1. Unit Tests** - Mock dependencies using `testify/mock`:
+
 - [`user/usecase_test.go`](user/usecase_test.go) - Mocks repository/hasher to test user business logic
 - [`httpserver/user_test.go`](httpserver/user_test.go) - Mocks user service to test user HTTP handlers
 
 **2. Integration Tests** - Uses real PostgreSQL via `testcontainers`:
+
 - [`httpserver/server_integration_test.go`](httpserver/server_integration_test.go) - Full stack testing setup
 - [`postgres/postgres_test.go`](postgres/postgres_test.go) - Database layer testing utilities
 
 ### Running Tests
 
 ```shell
-# Run all tests with coverage
+# Run CI-equivalent tests (recommended before push)
+make test/ci
+
+# Or run plain coverage tests
 make test
 
 # Run specific test
@@ -295,6 +448,7 @@ go tool cover -html=coverage.out
 ### Test Database Setup
 
 Integration tests automatically:
+
 1. Start PostgreSQL container via testcontainers
 2. Run migrations on test database
 3. Clean up after tests complete
@@ -312,6 +466,7 @@ make lint
 ```
 
 This runs multiple linters including:
+
 - `govet` - Static analysis
 - `errcheck` - Unchecked errors
 - And more...
@@ -334,7 +489,8 @@ swag init -g cmd/httpserver/main.go
 
 ## Docker
 
-**Local PostgreSQL:** 
+**Local PostgreSQL:**
+
 - Docker Compose configuration: [`tools/compose/docker-compose.yml`](tools/compose/docker-compose.yml)
 - Starts PostgreSQL 15 on port `33062`
 - Credentials configured via `.env` file
@@ -343,9 +499,43 @@ swag init -g cmd/httpserver/main.go
 make local-db  # Start PostgreSQL
 ```
 
+**S3 / LocalStack note:**
+
+- `make local-db` currently starts PostgreSQL only.
+- `tools/compose/docker-compose.yml` does not include a LocalStack service yet.
+- If you need S3-compatible local testing, run LocalStack separately and keep `S3_ENDPOINT` in `.env` aligned.
+
 **Application Dockerfiles:**
+
 - [`cmd/httpserver/Dockerfile`](cmd/httpserver/Dockerfile) - Main server
 - [`cmd/migrate/Dockerfile`](cmd/migrate/Dockerfile) - Database migrations
+- [`cmd/seed/Dockerfile`](cmd/seed/Dockerfile) - Demo seed job for manual QA
+
+**Run full stack with Docker (db + migrate + seed + api):**
+
+```shell
+make docker/up
+```
+
+Then verify:
+
+```shell
+curl -i http://localhost:8088/health
+```
+
+Useful Docker commands:
+
+```shell
+make docker/logs    # Follow API logs
+make docker/migrate # Re-run migrations job
+make docker/seed    # Re-run demo seed job
+make docker/down    # Stop full stack
+```
+
+**Production logging note:**
+
+- API emits structured JSON logs to stdout (application logs + HTTP access logs).
+- This format is container-friendly and works with log collectors (e.g. Loki/ELK/CloudWatch).
 
 ---
 
@@ -355,6 +545,7 @@ make local-db  # Start PostgreSQL
 cmd/
   httpserver/          # HTTP server entrypoint
   migrate/            # Database migration entrypoint
+  seed/               # Demo seed entrypoint
 auth/
   usecase.go          # Authentication use cases (login/refresh/oauth)
 httpserver/
@@ -390,6 +581,7 @@ tools/compose/        # Docker Compose files
 ### Key Design Patterns
 
 **Dependency Injection:**
+
 ```go
 // Domain defines interface
 type Service interface { AddUser(context.Context, User) error }
@@ -402,6 +594,7 @@ type Server struct { UserService user.Service }
 ```
 
 **Error Handling:**
+
 ```go
 // Domain errors with codes
 var ErrInvalidName = errs.Errorf(errs.EINVALID, "invalid name")
@@ -411,6 +604,7 @@ var ErrInvalidName = errs.Errorf(errs.EINVALID, "invalid name")
 ```
 
 **Testing:**
+
 - Unit tests mock dependencies (Repository, Service)
 - Integration tests use testcontainers for real database
 - Shared test utilities for database setup/cleanup
@@ -421,9 +615,14 @@ var ErrInvalidName = errs.Errorf(errs.EINVALID, "invalid name")
 
 ```shell
 make run         # Start server with hot reload (Air)
-make test        # Run all tests with coverage
+make test/ci     # Run tests exactly like CI workflow (junit + coverage.out)
+make test        # Run go test with coverage
 make local-db    # Start PostgreSQL in Docker
 make db/migrate  # Run database migrations
+make db/seed     # Seed demo hotel/room/inventory data for manual QA
+make docker/up   # Run full Docker stack (db + migrate + seed + api)
+make docker/down # Stop full Docker stack
+make docker/logs # Tail API logs from Docker stack
 make lint        # Run golangci-lint
 make format      # Format Go code (gofmt -w .)
 make swag        # Generate Swagger docs

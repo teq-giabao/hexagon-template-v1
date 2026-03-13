@@ -1370,11 +1370,6 @@ const docTemplate = `{
         },
         "/healthcheck": {
             "get": {
-                "security": [
-                    {
-                        "BearerAuth": []
-                    }
-                ],
                 "description": "Check if server is alive",
                 "tags": [
                     "health"

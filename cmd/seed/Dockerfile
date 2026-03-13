@@ -11,7 +11,7 @@ COPY . .
 
 RUN go mod verify
 
-RUN go build -ldflags "-s -w" -o migrate ./cmd/migrate/main.go
+RUN go build -ldflags "-s -w" -o seed ./cmd/seed/main.go
 
 FROM alpine:3.18
 
@@ -20,9 +20,8 @@ RUN apk --no-cache add ca-certificates tzdata && \
 RUN adduser -D -g '' appuser
 
 COPY --from=builder /etc/ssl/certs/ca-certificates.crt /etc/ssl/certs/
-COPY --from=builder /build/migrate /migrate
-COPY --from=builder /build/migrations /migrations
+COPY --from=builder /build/seed /seed
 
 USER appuser
 
-CMD ["/migrate"]
+CMD ["/seed"]
