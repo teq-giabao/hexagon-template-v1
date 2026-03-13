@@ -53,6 +53,7 @@ func NewUsecaseWithConfig(repo Repository, holdDuration, deferredPaymentWindow t
 	if holdDuration <= 0 {
 		holdDuration = DefaultHoldDuration
 	}
+
 	if deferredPaymentWindow <= 0 {
 		deferredPaymentWindow = DefaultDeferredPaymentWindow
 	}
@@ -88,11 +89,13 @@ func (uc *Usecase) SelectPaymentOption(ctx context.Context, id string, option ho
 	if err := ValidateID(id); err != nil {
 		return Booking{}, err
 	}
+
 	if err := ValidatePaymentOption(option); err != nil {
 		return Booking{}, err
 	}
 
 	var deadline *time.Time
+
 	if option == hotel.PaymentOptionDeferred {
 		value := time.Now().Add(uc.deferredPaymentWindow)
 		deadline = &value
@@ -113,6 +116,7 @@ func (uc *Usecase) CancelBooking(ctx context.Context, id string, cancellationFee
 	if err := ValidateID(id); err != nil {
 		return Booking{}, err
 	}
+
 	if cancellationFee < 0 {
 		return Booking{}, ErrCancellationFee
 	}

@@ -22,8 +22,11 @@ func TestNewUploader_MissingBucket(t *testing.T) {
 
 func TestUploader_Upload_WithEndpoint(t *testing.T) {
 	var gotPath string
+
 	var gotContentType string
+
 	var gotContentLength int64
+
 	var bodyBytes []byte
 
 	transport := roundTripFunc(func(req *http.Request) (*http.Response, error) {
@@ -31,6 +34,7 @@ func TestUploader_Upload_WithEndpoint(t *testing.T) {
 		gotContentType = req.Header.Get("Content-Type")
 		gotContentLength = req.ContentLength
 		bodyBytes, _ = io.ReadAll(req.Body)
+
 		return &http.Response{
 			StatusCode: http.StatusOK,
 			Body:       io.NopCloser(strings.NewReader("")),

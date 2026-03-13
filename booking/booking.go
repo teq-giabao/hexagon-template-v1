@@ -57,21 +57,27 @@ func (r CreateRequest) Validate() error {
 	if strings.TrimSpace(r.RoomID) == "" {
 		return ErrRoomIDRequired
 	}
+
 	if r.CheckInDate.IsZero() {
 		return ErrCheckInRequired
 	}
+
 	if r.CheckOutDate.IsZero() {
 		return ErrCheckOutRequired
 	}
+
 	if !r.CheckOutDate.After(r.CheckInDate) {
 		return ErrCheckOutBeforeCheckIn
 	}
+
 	if r.RoomCount <= 0 {
 		return ErrRoomCountInvalid
 	}
+
 	if r.GuestCount <= 0 {
 		return ErrGuestCountInvalid
 	}
+
 	return nil
 }
 

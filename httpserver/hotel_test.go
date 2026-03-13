@@ -46,6 +46,7 @@ func (m *MockUploadService) UploadImages(ctx context.Context, folder string, fil
 	if f, ok := args.Get(0).([]upload.UploadedFile); ok {
 		return f, args.Error(1)
 	}
+
 	return nil, args.Error(1)
 }
 
@@ -89,12 +90,12 @@ func TestHotelRoutes_AddHotel(t *testing.T) {
 	server.HotelService = svc
 
 	payload := map[string]any{
-		"name":        "Hotel A",
-		"description": "desc",
-		"address":     "123 Street",
-		"city":        "City",
-		"checkInTime": "15:00",
-		"checkOutTime": "12:00",
+		"name":           "Hotel A",
+		"description":    "desc",
+		"address":        "123 Street",
+		"city":           "City",
+		"checkInTime":    "15:00",
+		"checkOutTime":   "12:00",
 		"paymentOptions": []map[string]any{{"paymentOption": "immediate", "enabled": true}},
 	}
 	body, err := json.Marshal(payload)
@@ -105,6 +106,7 @@ func TestHotelRoutes_AddHotel(t *testing.T) {
 
 	req := httptest.NewRequest(http.MethodPost, "/api/hotels", bytes.NewReader(body))
 	req.Header.Set("Content-Type", "application/json")
+
 	rec := httptest.NewRecorder()
 	server.Router.ServeHTTP(rec, req)
 
@@ -119,10 +121,10 @@ func TestHotelRoutes_AddHotel_InvalidTime(t *testing.T) {
 	server.HotelService = svc
 
 	payload := map[string]any{
-		"name":        "Hotel A",
-		"address":     "123 Street",
-		"city":        "City",
-		"checkInTime": "99:99",
+		"name":         "Hotel A",
+		"address":      "123 Street",
+		"city":         "City",
+		"checkInTime":  "99:99",
 		"checkOutTime": "12:00",
 	}
 	body, err := json.Marshal(payload)
@@ -130,6 +132,7 @@ func TestHotelRoutes_AddHotel_InvalidTime(t *testing.T) {
 
 	req := httptest.NewRequest(http.MethodPost, "/api/hotels", bytes.NewReader(body))
 	req.Header.Set("Content-Type", "application/json")
+
 	rec := httptest.NewRecorder()
 	server.Router.ServeHTTP(rec, req)
 
@@ -165,7 +168,9 @@ func TestHotelRoutes_UploadImages_Success(t *testing.T) {
 	writer := multipart.NewWriter(buf)
 	part, err := writer.CreateFormFile("images", "a.jpg")
 	require.NoError(t, err)
+
 	_, _ = part.Write([]byte("abc"))
+
 	require.NoError(t, writer.Close())
 
 	req := httptest.NewRequest(http.MethodPost, "/api/hotels/upload-images", buf)

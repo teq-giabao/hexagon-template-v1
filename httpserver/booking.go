@@ -106,6 +106,7 @@ func (s *Server) handleSelectBookingPaymentOption(c echo.Context) error {
 	if err := c.Bind(&req); err != nil {
 		return s.respondBadRequest(c, "invalid request body", err.Error())
 	}
+
 	if err := c.Validate(&req); err != nil {
 		return s.respondBadRequest(c, "invalid request body", err.Error())
 	}
@@ -168,6 +169,7 @@ func (s *Server) handleCancelBooking(c echo.Context) error {
 	if err := c.Bind(&req); err != nil {
 		return s.respondBadRequest(c, "invalid request body", err.Error())
 	}
+
 	if err := c.Validate(&req); err != nil {
 		return s.respondBadRequest(c, "invalid request body", err.Error())
 	}

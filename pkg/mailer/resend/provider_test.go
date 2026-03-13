@@ -57,12 +57,14 @@ func (c *captureTransport) RoundTrip(req *http.Request) (*http.Response, error) 
 	require.NoError(c.t, err)
 
 	var payload capturedEmail
+
 	err = json.Unmarshal(body, &payload)
 	require.NoError(c.t, err)
 
 	c.handler(&payload)
 
 	respBody := io.NopCloser(bytes.NewReader([]byte(`{"id":"email_123"}`)))
+
 	return &http.Response{
 		StatusCode: http.StatusOK,
 		Body:       respBody,
