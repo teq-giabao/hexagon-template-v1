@@ -10,6 +10,7 @@ import (
 	"hexagon/search"
 
 	"gorm.io/gorm"
+	"gorm.io/gorm/clause"
 )
 
 type SearchRepository struct {
@@ -48,13 +49,16 @@ func (r *SearchRepository) SearchHotels(ctx context.Context, criteria search.Cri
 	results := make([]search.HotelSearchResult, 0, len(hotels))
 
 	for i := range hotels {
-		strict, flexible, minPrice, availableRoomTypes := evaluateHotelAvailabilityFromCandidates(
+		availability, err := evaluateHotelAvailabilityFromCandidates(
 			hotels[i],
 			criteria,
 			candidatesByHotel[hotels[i].ID],
 		)
+		if err != nil {
+			return nil, err
+		}
 
-		if !strict && !flexible {
+		if !availability.Strict && !availability.Flexible {
 			continue
 		}
 
@@ -65,10 +69,10 @@ func (r *SearchRepository) SearchHotels(ctx context.Context, criteria search.Cri
 			Address:            hotels[i].Address,
 			Rating:             hotels[i].Rating,
 			PaymentOptions:     toEnabledPaymentOptions(hotels[i].PaymentOptions),
-			MinPrice:           minPrice,
-			AvailableRoomCount: availableRoomTypes,
-			MatchesRequested:   strict,
-			FlexibleMatch:      flexible,
+			MinPrice:           availability.MinPrice,
+			AvailableRoomCount: availability.AvailableRoomTypes,
+			MatchesRequested:   availability.Strict,
+			FlexibleMatch:      availability.Flexible,
 		})
 	}
 
@@ -249,6 +253,13 @@ func sortAndLimitCombinations(combinations []search.RoomCombination, maxCombinat
 	return combinations
 }
 
+type hotelAvailability struct {
+	Strict             bool
+	Flexible           bool
+	MinPrice           float64
+	AvailableRoomTypes int
+}
+
 /*
 evaluateHotelAvailabilityFromCandidates computes final match flags for one hotel:
 - strict: satisfies requested room count.
@@ -260,15 +271,16 @@ func evaluateHotelAvailabilityFromCandidates(
 	hotel HotelModel,
 	criteria search.Criteria,
 	candidates []roomCandidate,
-) (strict bool, flexible bool, minPrice float64, availableRoomTypes int) {
+) (hotelAvailability, error) {
 	if !hotelMatchesFilter(hotel, criteria) {
-		return false, false, 0, 0
+		return hotelAvailability{}, nil
 	}
 
 	if len(candidates) == 0 {
-		return false, false, 0, 0
+		return hotelAvailability{}, nil
 	}
 
+	minPrice := 0.0
 	for i := range candidates {
 		if minPrice == 0 || candidates[i].Room.BasePrice < minPrice {
 			minPrice = candidates[i].Room.BasePrice
@@ -281,13 +293,18 @@ func evaluateHotelAvailabilityFromCandidates(
 	*/
 	requiredRoomCount := search.MinimumRequiredRooms(toSearchRoomCandidates(candidates), criteria.RoomCount, criteria.Adults, criteria.ChildrenAges, hotel.DefaultChildMaxAge)
 	if requiredRoomCount == 0 {
-		return false, false, minPrice, len(candidates)
+		return hotelAvailability{
+			MinPrice:           minPrice,
+			AvailableRoomTypes: len(candidates),
+		}, nil
 	}
 
-	strict = requiredRoomCount == criteria.RoomCount
-	flexible = requiredRoomCount > criteria.RoomCount
-
-	return strict, flexible, minPrice, len(candidates)
+	return hotelAvailability{
+		Strict:             requiredRoomCount == criteria.RoomCount,
+		Flexible:           requiredRoomCount > criteria.RoomCount,
+		MinPrice:           minPrice,
+		AvailableRoomTypes: len(candidates),
+	}, nil
 }
 
 /*
@@ -301,8 +318,12 @@ func (r *SearchRepository) findHotels(ctx context.Context, criteria search.Crite
 	if q := strings.TrimSpace(criteria.Query); q != "" {
 		// TODO: replace ILIKE matching with full-text search (and optionally unaccent/trigram)
 		normalized := strings.ToLower(q)
-		like := "%" + q + "%"
-		query = query.Where("hotels.name ILIKE ? OR hotels.city ILIKE ? OR hotels.address ILIKE ?", like, like, like)
+		like := "%" + normalized + "%"
+		query = query.Where(clause.Or(
+			clause.Like{Column: clause.Expr{SQL: "LOWER(hotels.name)"}, Value: like},
+			clause.Like{Column: clause.Expr{SQL: "LOWER(hotels.city)"}, Value: like},
+			clause.Like{Column: clause.Expr{SQL: "LOWER(hotels.address)"}, Value: like},
+		))
 		/*
 			Relevance ranking in SQL to avoid in-memory sorting.
 			Priority: exact name > name prefix > name contains > city matches > address contains.
