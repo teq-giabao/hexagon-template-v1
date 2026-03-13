@@ -927,6 +927,124 @@ const docTemplate = `{
                 }
             }
         },
+        "/api/search/hotels/{hotel_id}/room-combinations": {
+            "post": {
+                "description": "Return purchasable room combinations for a hotel under requested occupancy and date constraints.",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "search"
+                ],
+                "summary": "Search Hotel Room Combinations",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "Hotel ID",
+                        "name": "hotel_id",
+                        "in": "path",
+                        "required": true
+                    },
+                    {
+                        "description": "Hotel room combinations criteria",
+                        "name": "payload",
+                        "in": "body",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/definitions/httpserver.SearchHotelRoomCombinationsRequest"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "$ref": "#/definitions/httpserver.APISuccessResponse"
+                        }
+                    },
+                    "400": {
+                        "description": "Bad Request",
+                        "schema": {
+                            "$ref": "#/definitions/httpserver.APIErrorResponse"
+                        }
+                    },
+                    "404": {
+                        "description": "Not Found",
+                        "schema": {
+                            "$ref": "#/definitions/httpserver.APIErrorResponse"
+                        }
+                    },
+                    "500": {
+                        "description": "Internal Server Error",
+                        "schema": {
+                            "$ref": "#/definitions/httpserver.APIErrorResponse"
+                        }
+                    }
+                }
+            }
+        },
+        "/api/search/hotels/{hotel_id}/rooms": {
+            "post": {
+                "description": "Search available room types in a hotel by date range, occupancy, and room amenity filters.",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "search"
+                ],
+                "summary": "Search Hotel Rooms",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "Hotel ID",
+                        "name": "hotel_id",
+                        "in": "path",
+                        "required": true
+                    },
+                    {
+                        "description": "Hotel room search criteria",
+                        "name": "payload",
+                        "in": "body",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/definitions/httpserver.SearchHotelRoomsRequest"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "$ref": "#/definitions/httpserver.APISuccessResponse"
+                        }
+                    },
+                    "400": {
+                        "description": "Bad Request",
+                        "schema": {
+                            "$ref": "#/definitions/httpserver.APIErrorResponse"
+                        }
+                    },
+                    "404": {
+                        "description": "Not Found",
+                        "schema": {
+                            "$ref": "#/definitions/httpserver.APIErrorResponse"
+                        }
+                    },
+                    "500": {
+                        "description": "Internal Server Error",
+                        "schema": {
+                            "$ref": "#/definitions/httpserver.APIErrorResponse"
+                        }
+                    }
+                }
+            }
+        },
         "/api/users": {
             "get": {
                 "description": "Get all users",
@@ -1668,6 +1786,97 @@ const docTemplate = `{
                 }
             }
         },
+        "httpserver.SearchHotelRoomCombinationsRequest": {
+            "type": "object",
+            "required": [
+                "adultCount",
+                "amenityIds",
+                "checkInAt",
+                "checkOutAt",
+                "roomCount"
+            ],
+            "properties": {
+                "adultCount": {
+                    "type": "integer",
+                    "example": 5
+                },
+                "amenityIds": {
+                    "type": "array",
+                    "items": {
+                        "type": "string"
+                    }
+                },
+                "checkInAt": {
+                    "type": "string",
+                    "example": "2026-04-01"
+                },
+                "checkOutAt": {
+                    "type": "string",
+                    "example": "2026-04-03"
+                },
+                "childrenAges": {
+                    "type": "array",
+                    "items": {
+                        "type": "integer"
+                    },
+                    "example": [
+                        5
+                    ]
+                },
+                "maxCombinations": {
+                    "type": "integer",
+                    "minimum": 0,
+                    "example": 5
+                },
+                "roomCount": {
+                    "type": "integer",
+                    "example": 1
+                }
+            }
+        },
+        "httpserver.SearchHotelRoomsRequest": {
+            "type": "object",
+            "required": [
+                "adultCount",
+                "amenityIds",
+                "checkInAt",
+                "checkOutAt",
+                "roomCount"
+            ],
+            "properties": {
+                "adultCount": {
+                    "type": "integer",
+                    "example": 3
+                },
+                "amenityIds": {
+                    "type": "array",
+                    "items": {
+                        "type": "string"
+                    }
+                },
+                "checkInAt": {
+                    "type": "string",
+                    "example": "2026-04-01"
+                },
+                "checkOutAt": {
+                    "type": "string",
+                    "example": "2026-04-03"
+                },
+                "childrenAges": {
+                    "type": "array",
+                    "items": {
+                        "type": "integer"
+                    },
+                    "example": [
+                        5
+                    ]
+                },
+                "roomCount": {
+                    "type": "integer",
+                    "example": 2
+                }
+            }
+        },
         "httpserver.SearchHotelsRequest": {
             "type": "object",
             "required": [
@@ -1705,6 +1914,22 @@ const docTemplate = `{
                     "example": [
                         5
                     ]
+                },
+                "offset": {
+                    "type": "integer",
+                    "minimum": 0,
+                    "example": 0
+                },
+                "page": {
+                    "type": "integer",
+                    "minimum": 1,
+                    "example": 1
+                },
+                "pageSize": {
+                    "type": "integer",
+                    "maximum": 100,
+                    "minimum": 1,
+                    "example": 10
                 },
                 "paymentOptions": {
                     "type": "array",

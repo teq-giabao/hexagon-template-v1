@@ -215,6 +215,9 @@ type SearchHotelsRequest struct {
 	RatingMin      float64  `json:"ratingMin" validate:"gte=0,lte=5" example:"4"`
 	AmenityIDs     []string `json:"amenityIds" validate:"omitempty,dive,required,notblank"`
 	PaymentOptions []string `json:"paymentOptions" validate:"omitempty,dive,oneof=immediate pay_at_hotel deferred" example:"immediate,pay_at_hotel"`
+	Page           int      `json:"page" validate:"omitempty,gte=1" example:"1"`
+	PageSize       int      `json:"pageSize" validate:"omitempty,gte=1,lte=100" example:"10"`
+	Offset         int      `json:"offset" validate:"omitempty,gte=0" example:"0"`
 }
 
 func (r SearchHotelsRequest) ToCriteria(checkInAt, checkOutAt time.Time) search.Criteria {
@@ -228,5 +231,82 @@ func (r SearchHotelsRequest) ToCriteria(checkInAt, checkOutAt time.Time) search.
 		RatingMin:      r.RatingMin,
 		AmenityIDs:     r.AmenityIDs,
 		PaymentOptions: r.PaymentOptions,
+	}
+}
+
+func (r SearchHotelsRequest) EffectivePage() int {
+	if r.Page <= 0 {
+		return 1
+	}
+
+	return r.Page
+}
+
+func (r SearchHotelsRequest) EffectivePageSize() int {
+	if r.PageSize <= 0 {
+		return 10
+	}
+
+	return r.PageSize
+}
+
+func (r SearchHotelsRequest) EffectiveOffset() int {
+	if r.Offset > 0 {
+		return r.Offset
+	}
+
+	return (r.EffectivePage() - 1) * r.EffectivePageSize()
+}
+
+func (r SearchHotelsRequest) EffectivePageFromOffset(offset, pageSize int) int {
+	if pageSize <= 0 {
+		return 1
+	}
+
+	if offset < 0 {
+		offset = 0
+	}
+
+	return (offset / pageSize) + 1
+}
+
+type SearchHotelRoomsRequest struct {
+	CheckInAt    string   `json:"checkInAt" validate:"required,notblank,datetime=2006-01-02,date_not_past,date_within_booking_window" example:"2026-04-01"`
+	CheckOutAt   string   `json:"checkOutAt" validate:"required,notblank,datetime=2006-01-02,date_within_booking_window,checkout_after_checkin" example:"2026-04-03"`
+	RoomCount    int      `json:"roomCount" validate:"required,gt=0" example:"2"`
+	AdultCount   int      `json:"adultCount" validate:"required,gt=0" example:"3"`
+	ChildrenAges []int    `json:"childrenAges" validate:"omitempty,dive,gte=0,lte=17" example:"5"`
+	AmenityIDs   []string `json:"amenityIds" validate:"omitempty,dive,required,notblank"`
+}
+
+func (r SearchHotelRoomsRequest) ToCriteria(checkInAt, checkOutAt time.Time) search.Criteria {
+	return search.Criteria{
+		CheckInDate:  checkInAt,
+		CheckOutDate: checkOutAt,
+		Adults:       r.AdultCount,
+		ChildrenAges: r.ChildrenAges,
+		RoomCount:    r.RoomCount,
+		AmenityIDs:   r.AmenityIDs,
+	}
+}
+
+type SearchHotelRoomCombinationsRequest struct {
+	CheckInAt       string   `json:"checkInAt" validate:"required,notblank,datetime=2006-01-02,date_not_past,date_within_booking_window" example:"2026-04-01"`
+	CheckOutAt      string   `json:"checkOutAt" validate:"required,notblank,datetime=2006-01-02,date_within_booking_window,checkout_after_checkin" example:"2026-04-03"`
+	RoomCount       int      `json:"roomCount" validate:"required,gt=0" example:"1"`
+	AdultCount      int      `json:"adultCount" validate:"required,gt=0" example:"5"`
+	ChildrenAges    []int    `json:"childrenAges" validate:"omitempty,dive,gte=0,lte=17" example:"5"`
+	AmenityIDs      []string `json:"amenityIds" validate:"omitempty,dive,required,notblank"`
+	MaxCombinations int      `json:"maxCombinations" validate:"gte=0" example:"5"`
+}
+
+func (r SearchHotelRoomCombinationsRequest) ToCriteria(checkInAt, checkOutAt time.Time) search.Criteria {
+	return search.Criteria{
+		CheckInDate:  checkInAt,
+		CheckOutDate: checkOutAt,
+		Adults:       r.AdultCount,
+		ChildrenAges: r.ChildrenAges,
+		RoomCount:    r.RoomCount,
+		AmenityIDs:   r.AmenityIDs,
 	}
 }
