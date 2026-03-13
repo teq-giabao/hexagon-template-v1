@@ -57,6 +57,7 @@ func TestRoomRoutes_AddRoom(t *testing.T) {
 
 	req := httptest.NewRequest(http.MethodPost, "/api/rooms", bytes.NewReader(body))
 	req.Header.Set("Content-Type", "application/json")
+
 	rec := httptest.NewRecorder()
 	server.Router.ServeHTTP(rec, req)
 
@@ -82,6 +83,7 @@ func TestRoomRoutes_AddAmenity(t *testing.T) {
 
 	req := httptest.NewRequest(http.MethodPost, "/api/room-amenities", bytes.NewReader(body))
 	req.Header.Set("Content-Type", "application/json")
+
 	rec := httptest.NewRecorder()
 	server.Router.ServeHTTP(rec, req)
 
@@ -102,12 +104,13 @@ func TestRoomRoutes_AddInventory_MissingRoomID(t *testing.T) {
 	body, err := json.Marshal(payload)
 	require.NoError(t, err)
 
-	req := httptest.NewRequest(http.MethodPost, "/api/rooms//inventories", bytes.NewReader(body))
+	req := httptest.NewRequest(http.MethodPost, "/api/rooms/%20/inventories", bytes.NewReader(body))
 	req.Header.Set("Content-Type", "application/json")
+
 	rec := httptest.NewRecorder()
 	server.Router.ServeHTTP(rec, req)
 
-	assert.Equal(t, http.StatusNotFound, rec.Code)
+	assert.Equal(t, http.StatusBadRequest, rec.Code)
 }
 
 func TestRoomRoutes_AddInventory(t *testing.T) {
@@ -116,9 +119,9 @@ func TestRoomRoutes_AddInventory(t *testing.T) {
 	server.RoomService = svc
 
 	payload := map[string]any{
-		"date":           "2026-04-01",
-		"totalInventory": 10,
-		"heldInventory":  1,
+		"date":            "2026-04-01",
+		"totalInventory":  10,
+		"heldInventory":   1,
 		"bookedInventory": 2,
 	}
 	body, err := json.Marshal(payload)
@@ -129,6 +132,7 @@ func TestRoomRoutes_AddInventory(t *testing.T) {
 
 	req := httptest.NewRequest(http.MethodPost, "/api/rooms/r-1/inventories", bytes.NewReader(body))
 	req.Header.Set("Content-Type", "application/json")
+
 	rec := httptest.NewRecorder()
 	server.Router.ServeHTTP(rec, req)
 

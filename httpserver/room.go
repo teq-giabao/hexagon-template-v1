@@ -1,6 +1,7 @@
 package httpserver
 
 import (
+	"strings"
 	"time"
 
 	"hexagon/room"
@@ -90,7 +91,7 @@ func (s *Server) handleAddRoomAmenity(c echo.Context) error {
 // @Failure 500 {object} APIErrorResponse
 // @Router /api/rooms/{room_id}/inventories [post]
 func (s *Server) handleAddRoomInventory(c echo.Context) error {
-	roomID := c.Param("room_id")
+	roomID := strings.TrimSpace(c.Param("room_id"))
 	if roomID == "" {
 		return s.respondBadRequest(c, "invalid room id", "room_id is required")
 	}

@@ -11,15 +11,16 @@ import (
 
 func validCriteria() Criteria {
 	now := time.Now().UTC()
+
 	return Criteria{
-		Query:        "test",
-		CheckInDate:  now.Add(24 * time.Hour),
-		CheckOutDate: now.Add(48 * time.Hour),
-		Adults:       2,
-		ChildrenAges: []int{5},
-		RoomCount:    1,
-		RatingMin:    4,
-		AmenityIDs:   []string{"wifi"},
+		Query:          "test",
+		CheckInDate:    now.Add(24 * time.Hour),
+		CheckOutDate:   now.Add(48 * time.Hour),
+		Adults:         2,
+		ChildrenAges:   []int{5},
+		RoomCount:      1,
+		RatingMin:      4,
+		AmenityIDs:     []string{"wifi"},
 		PaymentOptions: []string{"card"},
 	}
 }

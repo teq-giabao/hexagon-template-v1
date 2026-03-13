@@ -37,6 +37,7 @@ func (f *fakeUploader) Upload(ctx context.Context, key string, body io.Reader, s
 	f.lastContentType = contentType
 	f.lastSize = size
 	f.lastBody, _ = io.ReadAll(body)
+
 	return f.url, f.err
 }
 
