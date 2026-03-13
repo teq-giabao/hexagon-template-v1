@@ -322,6 +322,14 @@ definitions:
     - query
     - roomCount
     type: object
+  httpserver.SendVerifyEmailRequest:
+    properties:
+      email:
+        maxLength: 255
+        type: string
+    required:
+    - email
+    type: object
   httpserver.UpdateProfileRequest:
     properties:
       name:
@@ -351,6 +359,13 @@ definitions:
         type: string
       updatedAt:
         type: string
+    type: object
+  httpserver.VerifyEmailRequest:
+    properties:
+      token:
+        type: string
+    required:
+    - token
     type: object
   room.RoomStatus:
     enum:
@@ -597,8 +612,8 @@ paths:
       produces:
       - application/json
       responses:
-        "200":
-          description: OK
+        "201":
+          description: Created
           schema:
             $ref: '#/definitions/httpserver.APISuccessResponse'
         "400":
@@ -648,6 +663,74 @@ paths:
           schema:
             $ref: '#/definitions/httpserver.APIErrorResponse'
       summary: Reset Password
+      tags:
+      - auth
+  /api/auth/verify-email:
+    post:
+      consumes:
+      - application/json
+      description: Verify user email with verification token
+      parameters:
+      - description: Verify email payload
+        in: body
+        name: payload
+        required: true
+        schema:
+          $ref: '#/definitions/httpserver.VerifyEmailRequest'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/httpserver.APISuccessResponse'
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/httpserver.APIErrorResponse'
+        "401":
+          description: Unauthorized
+          schema:
+            $ref: '#/definitions/httpserver.APIErrorResponse'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/httpserver.APIErrorResponse'
+      summary: Verify email
+      tags:
+      - auth
+  /api/auth/verify-email/send:
+    post:
+      consumes:
+      - application/json
+      description: Send email verification link to user email
+      parameters:
+      - description: Send verify email payload
+        in: body
+        name: payload
+        required: true
+        schema:
+          $ref: '#/definitions/httpserver.SendVerifyEmailRequest'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/httpserver.APISuccessResponse'
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/httpserver.APIErrorResponse'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/httpserver.APIErrorResponse'
+        "501":
+          description: Not Implemented
+          schema:
+            $ref: '#/definitions/httpserver.APIErrorResponse'
+      summary: Send verify email
       tags:
       - auth
   /api/hotels:

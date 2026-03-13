@@ -63,6 +63,7 @@ type User struct {
 	Phone               string
 	Password            string
 	PasswordHash        string
+	EmailVerifiedAt     *time.Time
 	Role                UserRole
 	Status              UserStatus
 	FailedLoginAttempts int

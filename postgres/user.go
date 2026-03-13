@@ -19,6 +19,7 @@ type UserModel struct {
 	Email               string `gorm:"not null;unique"`
 	Phone               string
 	PasswordHash        string
+	EmailVerifiedAt     *time.Time
 	Role                string `gorm:"not null;default:user"`
 	Status              string `gorm:"not null;default:active"`
 	FailedLoginAttempts int    `gorm:"not null;default:0"`
@@ -168,6 +169,23 @@ func (r *UserRepository) UpdatePasswordHash(ctx context.Context, id, passwordHas
 	return nil
 }
 
+// UpdateEmailVerifiedAt updates user's email verification timestamp.
+func (r *UserRepository) UpdateEmailVerifiedAt(ctx context.Context, id string, verifiedAt *time.Time) error {
+	result := r.db.WithContext(ctx).Model(&UserModel{}).Where("id = ?", id).Updates(map[string]interface{}{
+		"email_verified_at": verifiedAt,
+		"updated_at":        time.Now().UTC(),
+	})
+	if result.Error != nil {
+		return result.Error
+	}
+
+	if result.RowsAffected == 0 {
+		return user.ErrUserNotFound
+	}
+
+	return nil
+}
+
 // UpdateStatus updates user's status.
 func (r *UserRepository) UpdateStatus(ctx context.Context, id string, status user.UserStatus) error {
 	result := r.db.WithContext(ctx).Model(&UserModel{}).Where("id = ?", id).Updates(map[string]interface{}{
@@ -221,6 +239,7 @@ func toDomainUser(model UserModel) user.User {
 		Email:               model.Email,
 		Phone:               model.Phone,
 		PasswordHash:        model.PasswordHash,
+		EmailVerifiedAt:     model.EmailVerifiedAt,
 		Role:                user.UserRole(model.Role),
 		Status:              user.UserStatus(model.Status),
 		FailedLoginAttempts: model.FailedLoginAttempts,
@@ -239,6 +258,7 @@ func toModelUser(u user.User) UserModel {
 		Email:               u.Email,
 		Phone:               u.Phone,
 		PasswordHash:        u.PasswordHash,
+		EmailVerifiedAt:     u.EmailVerifiedAt,
 		Role:                string(u.Role),
 		Status:              string(u.Status),
 		FailedLoginAttempts: u.FailedLoginAttempts,

@@ -21,6 +21,8 @@ var (
 	ErrInvalidAccessToken       = errors.New("invalid access token")
 	ErrAccountLocked            = errors.New("account temporarily locked")
 	ErrInvalidRefreshToken      = errors.New("invalid refresh token")
+	ErrInvalidVerifyToken       = errors.New("invalid verification token")
+	ErrEmailNotVerified         = errors.New("email is not verified")
 	ErrInvalidOAuthUser         = errors.New("invalid oauth user")
 	ErrInvalidResetToken        = errors.New("invalid reset token")
 	ErrMissingState             = errors.New("missing oauth state")
@@ -34,10 +36,12 @@ var (
 )
 
 type Service interface {
-	Register(ctx context.Context, name, email, phone, password string) (TokenPair, error)
+	Register(ctx context.Context, name, email, phone, password string) error
 	Login(ctx context.Context, email, password string) (TokenPair, error)
 	Logout(ctx context.Context, refreshToken string) error
 	Refresh(ctx context.Context, refreshToken string) (TokenPair, error)
+	SendEmailVerification(ctx context.Context, email string) error
+	VerifyEmail(ctx context.Context, verifyToken string) error
 	ForgotPassword(ctx context.Context, email string) error
 	ResetPassword(ctx context.Context, resetToken, newPassword string) error
 	Me(ctx context.Context, accessToken string) (user.User, error)
@@ -57,6 +61,7 @@ type UserRepository interface {
 	CreateUser(ctx context.Context, u user.User) error
 	CreateUserTx(ctx context.Context, u user.User, fn func(created user.User) error) (user.User, error)
 	UpdatePasswordHash(ctx context.Context, id, passwordHash string) error
+	UpdateEmailVerifiedAt(ctx context.Context, id string, verifiedAt *time.Time) error
 	UpdateAuthState(
 		ctx context.Context,
 		id string,
@@ -86,6 +91,12 @@ type PasswordResetTokenRepository interface {
 	MarkUsedByHash(ctx context.Context, tokenHash string, usedAt time.Time) error
 }
 
+type EmailVerificationTokenRepository interface {
+	Save(ctx context.Context, token EmailVerificationToken) error
+	GetActiveByHash(ctx context.Context, tokenHash string) (EmailVerificationToken, error)
+	MarkUsedByHash(ctx context.Context, tokenHash string, usedAt time.Time) error
+}
+
 type RefreshToken struct {
 	UserID    string
 	TokenHash string
@@ -96,6 +107,13 @@ type RefreshToken struct {
 }
 
 type PasswordResetToken struct {
+	UserID    string
+	TokenHash string
+	ExpiresAt time.Time
+	UsedAt    *time.Time
+}
+
+type EmailVerificationToken struct {
 	UserID    string
 	TokenHash string
 	ExpiresAt time.Time
@@ -126,24 +144,28 @@ type GoogleOAuthProvider interface {
 	Exchange(ctx context.Context, code string) (OAuthUser, error)
 }
 
-type PasswordResetMailer interface {
+type Mailer interface {
 	SendResetPasswordEmail(ctx context.Context, toEmail, toName, resetURL string) error
+	SendVerifyEmail(ctx context.Context, toEmail, toName, verifyURL string) error
 }
 
 type Usecase struct {
-	userRepo       UserRepository
-	oauthRepo      OAuthProviderAccountRepository
-	refreshRepo    RefreshTokenRepository
-	resetTokenRepo PasswordResetTokenRepository
-	passwordHasher PasswordHasher
-	tokenProvider  TokenProvider
-	googleProvider GoogleOAuthProvider
-	resetMailer    PasswordResetMailer
-	resetBaseURL   string
-	maxRetries     int
-	jailDuration   time.Duration
-	resetTTL       time.Duration
-	now            func() time.Time
+	userRepo        UserRepository
+	oauthRepo       OAuthProviderAccountRepository
+	refreshRepo     RefreshTokenRepository
+	resetTokenRepo  PasswordResetTokenRepository
+	verifyTokenRepo EmailVerificationTokenRepository
+	passwordHasher  PasswordHasher
+	tokenProvider   TokenProvider
+	googleProvider  GoogleOAuthProvider
+	mailer          Mailer
+	resetBaseURL    string
+	verifyBaseURL   string
+	maxRetries      int
+	jailDuration    time.Duration
+	resetTTL        time.Duration
+	verifyTTL       time.Duration
+	now             func() time.Time
 }
 
 type TokenPair struct {
@@ -161,25 +183,30 @@ func NewUsecase(
 	oauthRepo OAuthProviderAccountRepository,
 	refreshRepo RefreshTokenRepository,
 	resetTokenRepo PasswordResetTokenRepository,
+	verifyTokenRepo EmailVerificationTokenRepository,
 	passwordHasher PasswordHasher,
 	tokenProvider TokenProvider,
 	googleProvider GoogleOAuthProvider,
-	resetMailer PasswordResetMailer,
+	mailer Mailer,
 	resetBaseURL string,
+	verifyBaseURL string,
 ) *Usecase {
 	return &Usecase{
-		userRepo:       userRepo,
-		oauthRepo:      oauthRepo,
-		refreshRepo:    refreshRepo,
-		resetTokenRepo: resetTokenRepo,
-		passwordHasher: passwordHasher,
-		tokenProvider:  tokenProvider,
-		googleProvider: googleProvider,
-		resetMailer:    resetMailer,
-		resetBaseURL:   strings.TrimSpace(resetBaseURL),
-		maxRetries:     5,
-		jailDuration:   15 * time.Minute,
-		resetTTL:       30 * time.Minute,
+		userRepo:        userRepo,
+		oauthRepo:       oauthRepo,
+		refreshRepo:     refreshRepo,
+		resetTokenRepo:  resetTokenRepo,
+		verifyTokenRepo: verifyTokenRepo,
+		passwordHasher:  passwordHasher,
+		tokenProvider:   tokenProvider,
+		googleProvider:  googleProvider,
+		mailer:          mailer,
+		resetBaseURL:    strings.TrimSpace(resetBaseURL),
+		verifyBaseURL:   strings.TrimSpace(verifyBaseURL),
+		maxRetries:      5,
+		jailDuration:    15 * time.Minute,
+		resetTTL:        30 * time.Minute,
+		verifyTTL:       24 * time.Hour,
 		now: func() time.Time {
 			return time.Now().UTC()
 		},
@@ -187,10 +214,10 @@ func NewUsecase(
 }
 
 // nolint: funlen
-func (uc *Usecase) Register(ctx context.Context, name, email, phone, password string) (TokenPair, error) {
+func (uc *Usecase) Register(ctx context.Context, name, email, phone, password string) error {
 	existing, err := uc.userRepo.GetByEmail(ctx, strings.TrimSpace(email))
 	if err == nil && strings.TrimSpace(existing.PasswordHash) == "" {
-		return TokenPair{}, ErrEmailRegisteredWithOAuth
+		return ErrEmailRegisteredWithOAuth
 	}
 
 	newUser := user.User{
@@ -202,55 +229,26 @@ func (uc *Usecase) Register(ctx context.Context, name, email, phone, password st
 		Status:   user.UserStatusActive,
 	}
 	if err := newUser.Validate(); err != nil {
-		return TokenPair{}, err
+		return err
 	}
 
 	hashed, err := uc.passwordHasher.Hash(newUser.Password)
 	if err != nil {
-		return TokenPair{}, err
+		return err
 	}
 
 	newUser.Password = ""
 	newUser.PasswordHash = hashed
 
-	var (
-		tokens  TokenPair
-		created user.User
-	)
-
-	created, err = uc.userRepo.CreateUserTx(ctx, newUser, func(created user.User) error {
-		accessToken, err := uc.tokenProvider.GenerateAccessToken(created)
-		if err != nil {
-			return err
-		}
-
-		refreshToken, err := uc.tokenProvider.GenerateRefreshToken(created)
-		if err != nil {
-			return err
-		}
-
-		tokens = TokenPair{
-			AccessToken:  accessToken,
-			RefreshToken: refreshToken,
-		}
-
-		return nil
-	})
+	created, err := uc.userRepo.CreateUserTx(ctx, newUser, nil)
 	if err != nil {
-		return TokenPair{}, err
+		return err
 	}
 
-	if err := uc.refreshRepo.Save(ctx, RefreshToken{
-		UserID:    created.ID,
-		TokenHash: hashToken(tokens.RefreshToken),
-		UserAgent: clientInfoFromContext(ctx).UserAgent,
-		IPAddress: clientInfoFromContext(ctx).IPAddress,
-		ExpiresAt: uc.now().Add(uc.tokenProviderRefreshTTL()),
-	}); err != nil {
-		return TokenPair{}, err
-	}
+	// Best-effort: registration should still succeed if verification mail is not configured.
+	_ = uc.issueEmailVerification(ctx, created)
 
-	return tokens, nil
+	return nil
 }
 
 func (uc *Usecase) Login(ctx context.Context, email, password string) (TokenPair, error) {
@@ -281,6 +279,10 @@ func (uc *Usecase) Login(ctx context.Context, email, password string) (TokenPair
 
 	if err := uc.resetAuthState(ctx, u); err != nil {
 		return TokenPair{}, err
+	}
+
+	if u.EmailVerifiedAt == nil {
+		return TokenPair{}, ErrEmailNotVerified
 	}
 
 	return uc.issueTokens(ctx, u)
@@ -419,6 +421,72 @@ func (uc *Usecase) Logout(ctx context.Context, refreshToken string) error {
 	return uc.refreshRepo.RevokeByHash(ctx, hashToken(refreshToken), uc.now())
 }
 
+func (uc *Usecase) SendEmailVerification(ctx context.Context, email string) error {
+	email = strings.TrimSpace(email)
+	if _, err := mail.ParseAddress(email); err != nil {
+		return ErrMissingEmail
+	}
+
+	u, err := uc.userRepo.GetByEmail(ctx, email)
+	if err != nil {
+		// Avoid user-enumeration: respond success even when user does not exist.
+		return nil
+	}
+
+	if u.EmailVerifiedAt != nil {
+		return nil
+	}
+
+	return uc.issueEmailVerification(ctx, u)
+}
+
+func (uc *Usecase) VerifyEmail(ctx context.Context, verifyToken string) error {
+	verifyToken = strings.TrimSpace(verifyToken)
+	if verifyToken == "" {
+		return ErrInvalidVerifyToken
+	}
+
+	tokenHash := hashToken(verifyToken)
+
+	entry, err := uc.verifyTokenRepo.GetActiveByHash(ctx, tokenHash)
+	if err != nil || entry.ExpiresAt.Before(uc.now()) {
+		return ErrInvalidVerifyToken
+	}
+
+	now := uc.now()
+	if err := uc.userRepo.UpdateEmailVerifiedAt(ctx, entry.UserID, &now); err != nil {
+		return ErrInvalidVerifyToken
+	}
+
+	return uc.verifyTokenRepo.MarkUsedByHash(ctx, tokenHash, now)
+}
+
+func (uc *Usecase) issueEmailVerification(ctx context.Context, u user.User) error {
+	if uc.verifyTokenRepo == nil || uc.mailer == nil || uc.verifyBaseURL == "" {
+		return ErrMailerNotConfigured
+	}
+
+	verifyToken, err := generateRandomPassword(24)
+	if err != nil {
+		return err
+	}
+
+	if err := uc.verifyTokenRepo.Save(ctx, EmailVerificationToken{
+		UserID:    u.ID,
+		TokenHash: hashToken(verifyToken),
+		ExpiresAt: uc.now().Add(uc.verifyTTL),
+	}); err != nil {
+		return err
+	}
+
+	verifyURL, err := composeResetPasswordURL(uc.verifyBaseURL, verifyToken)
+	if err != nil {
+		return err
+	}
+
+	return uc.mailer.SendVerifyEmail(ctx, u.Email, u.Name, verifyURL)
+}
+
 func (uc *Usecase) ForgotPassword(ctx context.Context, email string) error {
 	email = strings.TrimSpace(email)
 	if _, err := mail.ParseAddress(email); err != nil {
@@ -448,7 +516,7 @@ func (uc *Usecase) ForgotPassword(ctx context.Context, email string) error {
 		return err
 	}
 
-	if uc.resetMailer == nil || uc.resetBaseURL == "" {
+	if uc.mailer == nil || uc.resetBaseURL == "" {
 		return ErrMailerNotConfigured
 	}
 
@@ -457,7 +525,7 @@ func (uc *Usecase) ForgotPassword(ctx context.Context, email string) error {
 		return err
 	}
 
-	return uc.resetMailer.SendResetPasswordEmail(ctx, u.Email, u.Name, resetURL)
+	return uc.mailer.SendResetPasswordEmail(ctx, u.Email, u.Name, resetURL)
 }
 
 func (uc *Usecase) ResetPassword(ctx context.Context, resetToken, newPassword string) error {
@@ -572,6 +640,15 @@ func (uc *Usecase) LoginWithGoogle(ctx context.Context, code string) (TokenPair,
 		return tokens, nil
 	}
 
+	if u.EmailVerifiedAt == nil {
+		now := uc.now()
+		if err := uc.userRepo.UpdateEmailVerifiedAt(ctx, u.ID, &now); err != nil {
+			return TokenPair{}, err
+		}
+
+		u.EmailVerifiedAt = &now
+	}
+
 	return uc.issueTokens(ctx, u)
 }
 
@@ -639,10 +716,11 @@ func (uc *Usecase) createOAuthUser(ctx context.Context, oauthUser OAuthUser) (us
 	}
 
 	newUser := user.User{
-		Name:   name,
-		Email:  oauthUser.Email,
-		Role:   user.UserRoleUser,
-		Status: user.UserStatusActive,
+		Name:            name,
+		Email:           oauthUser.Email,
+		EmailVerifiedAt: pointerOfTime(uc.now()),
+		Role:            user.UserRoleUser,
+		Status:          user.UserStatusActive,
 	}
 
 	var tokens TokenPair
@@ -802,4 +880,8 @@ func sameClientSession(stored RefreshToken, info ClientInfo) bool {
 	}
 
 	return true
+}
+
+func pointerOfTime(t time.Time) *time.Time {
+	return &t
 }
