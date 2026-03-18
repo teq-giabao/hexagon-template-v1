@@ -20,8 +20,11 @@ func testConfig() *config.Config {
 
 func signTestToken() (string, error) {
 	claims := jwt.MapClaims{
-		"user_id": 1,
-		"exp":     time.Now().Add(1 * time.Hour).Unix(),
+		"sub":            "u-1",
+		"user_id":        "u-1",
+		"email":          "john@mail.com",
+		"email_verified": true,
+		"exp":            time.Now().Add(1 * time.Hour).Unix(),
 	}
 	t := jwt.NewWithClaims(jwt.SigningMethodHS256, claims)
 

@@ -4,14 +4,14 @@ import (
 	"github.com/labstack/echo/v4"
 )
 
-func (s *Server) RegisterUserRoutes() {
-	s.Router.GET("/api/users", s.handleListUsers)
-	s.Router.GET("/api/users/:id", s.handleGetUserByID)
-	s.Router.GET("/api/users/by-email", s.handleGetUserByEmail)
-	s.Router.POST("/api/users", s.handleAddUser)
-	s.Router.PATCH("/api/users/:id/profile", s.handleUpdateProfile)
-	s.Router.PATCH("/api/users/:id/password", s.handleChangePassword)
-	s.Router.PATCH("/api/users/:id/deactivate", s.handleDeactivateUser)
+func (s *Server) RegisterUserRoutes(g *echo.Group) {
+	g.GET("/users", s.handleListUsers)
+	g.GET("/users/:id", s.handleGetUserByID)
+	g.GET("/users/by-email", s.handleGetUserByEmail)
+	g.POST("/users", s.handleAddUser)
+	g.PATCH("/users/:id/profile", s.handleUpdateProfile)
+	g.PATCH("/users/:id/password", s.handleChangePassword)
+	g.PATCH("/users/:id/deactivate", s.handleDeactivateUser)
 }
 
 // handleAddUser godoc

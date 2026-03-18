@@ -68,7 +68,12 @@ func (r *OAuthProviderAccountRepository) Upsert(
 		ProviderEmail:  providerEmail,
 	}
 
-	err := r.db.WithContext(ctx).Clauses(clause.OnConflict{
+	db := r.db
+	if tx := txFromContext(ctx); tx != nil {
+		db = tx
+	}
+
+	err := db.WithContext(ctx).Clauses(clause.OnConflict{
 		Columns:   []clause.Column{{Name: "provider"}, {Name: "provider_user_id"}},
 		DoUpdates: clause.AssignmentColumns([]string{"user_id", "provider_email"}),
 	}).Create(&model).Error

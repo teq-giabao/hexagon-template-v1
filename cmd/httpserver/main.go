@@ -67,7 +67,7 @@ func main() {
 		Password: cfg.DB.Pass,
 		Host:     cfg.DB.Host,
 		Port:     fmt.Sprintf("%d", cfg.DB.Port),
-		SSLMode:  false,
+		SSLMode:  cfg.DB.EnableSSL,
 	})
 	if err != nil {
 		slog.Error("Cannot open postgres connection", "error", err)

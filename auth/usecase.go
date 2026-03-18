@@ -1,4 +1,3 @@
-// nolint: nestif
 package auth
 
 import (
@@ -59,7 +58,7 @@ type UserRepository interface {
 	GetByEmail(ctx context.Context, email string) (user.User, error)
 	GetByID(ctx context.Context, id string) (user.User, error)
 	CreateUser(ctx context.Context, u user.User) error
-	CreateUserTx(ctx context.Context, u user.User, fn func(created user.User) error) (user.User, error)
+	CreateUserTx(ctx context.Context, u user.User, fn func(ctx context.Context, created user.User) error) (user.User, error)
 	UpdatePasswordHash(ctx context.Context, id, passwordHash string) error
 	UpdateEmailVerifiedAt(ctx context.Context, id string, verifiedAt *time.Time) error
 	UpdateAuthState(
@@ -173,8 +172,8 @@ type TokenPair struct {
 	RefreshToken string
 }
 
-// NowForTest overrides clock in tests.
-func (uc *Usecase) NowForTest(now time.Time) {
+// setNowForTest overrides clock in tests.
+func (uc *Usecase) setNowForTest(now time.Time) {
 	uc.now = func() time.Time { return now }
 }
 
@@ -503,6 +502,10 @@ func (uc *Usecase) ForgotPassword(ctx context.Context, email string) error {
 		return ErrPasswordAuthNotAvailable
 	}
 
+	if uc.mailer == nil || uc.resetBaseURL == "" {
+		return ErrMailerNotConfigured
+	}
+
 	resetToken, err := generateRandomPassword(24)
 	if err != nil {
 		return err
@@ -514,10 +517,6 @@ func (uc *Usecase) ForgotPassword(ctx context.Context, email string) error {
 		ExpiresAt: uc.now().Add(uc.resetTTL),
 	}); err != nil {
 		return err
-	}
-
-	if uc.mailer == nil || uc.resetBaseURL == "" {
-		return ErrMailerNotConfigured
 	}
 
 	resetURL, err := composeResetPasswordURL(uc.resetBaseURL, resetToken)
@@ -725,7 +724,7 @@ func (uc *Usecase) createOAuthUser(ctx context.Context, oauthUser OAuthUser) (us
 
 	var tokens TokenPair
 
-	created, err := uc.userRepo.CreateUserTx(ctx, newUser, func(created user.User) error {
+	created, err := uc.userRepo.CreateUserTx(ctx, newUser, func(txCtx context.Context, created user.User) error {
 		accessToken, err := uc.tokenProvider.GenerateAccessToken(created)
 		if err != nil {
 			return err
@@ -741,24 +740,24 @@ func (uc *Usecase) createOAuthUser(ctx context.Context, oauthUser OAuthUser) (us
 			RefreshToken: refreshToken,
 		}
 
+		info := clientInfoFromContext(txCtx)
+		if err := uc.refreshRepo.Save(txCtx, RefreshToken{
+			UserID:    created.ID,
+			TokenHash: hashToken(tokens.RefreshToken),
+			UserAgent: info.UserAgent,
+			IPAddress: info.IPAddress,
+			ExpiresAt: uc.now().Add(uc.tokenProviderRefreshTTL()),
+		}); err != nil {
+			return err
+		}
+
+		if err := uc.linkOAuthProvider(txCtx, created.ID, oauthUser); err != nil {
+			return err
+		}
+
 		return nil
 	})
 	if err != nil {
-		return user.User{}, TokenPair{}, err
-	}
-
-	if err := uc.linkOAuthProvider(ctx, created.ID, oauthUser); err != nil {
-		return user.User{}, TokenPair{}, err
-	}
-
-	info := clientInfoFromContext(ctx)
-	if err := uc.refreshRepo.Save(ctx, RefreshToken{
-		UserID:    created.ID,
-		TokenHash: hashToken(tokens.RefreshToken),
-		UserAgent: info.UserAgent,
-		IPAddress: info.IPAddress,
-		ExpiresAt: uc.now().Add(uc.tokenProviderRefreshTTL()),
-	}); err != nil {
 		return user.User{}, TokenPair{}, err
 	}
 

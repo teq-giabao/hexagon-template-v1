@@ -42,17 +42,18 @@ func (p *JWTProvider) GenerateAccessToken(u user.User) (string, error) {
 	}
 
 	claims := jwt.MapClaims{
-		"iss":     p.Issuer,
-		"aud":     p.Audience,
-		"sub":     u.ID,
-		"jti":     jti,
-		"iat":     now.Unix(),
-		"nbf":     now.Unix(),
-		"exp":     now.Add(p.AccessTTL).Unix(),
-		"type":    "access",
-		"user_id": u.ID,
-		"email":   u.Email,
-		"role":    string(u.Role),
+		"iss":            p.Issuer,
+		"aud":            p.Audience,
+		"sub":            u.ID,
+		"jti":            jti,
+		"iat":            now.Unix(),
+		"nbf":            now.Unix(),
+		"exp":            now.Add(p.AccessTTL).Unix(),
+		"type":           "access",
+		"user_id":        u.ID,
+		"email":          u.Email,
+		"email_verified": u.EmailVerifiedAt != nil,
+		"role":           string(u.Role),
 	}
 
 	t := jwt.NewWithClaims(jwt.SigningMethodHS256, claims)
@@ -69,17 +70,18 @@ func (p *JWTProvider) GenerateRefreshToken(u user.User) (string, error) {
 	}
 
 	claims := jwt.MapClaims{
-		"iss":     p.Issuer,
-		"aud":     p.Audience,
-		"sub":     u.ID,
-		"jti":     jti,
-		"iat":     now.Unix(),
-		"nbf":     now.Unix(),
-		"exp":     now.Add(p.RefreshTTL).Unix(),
-		"type":    "refresh",
-		"user_id": u.ID,
-		"email":   u.Email,
-		"role":    string(u.Role),
+		"iss":            p.Issuer,
+		"aud":            p.Audience,
+		"sub":            u.ID,
+		"jti":            jti,
+		"iat":            now.Unix(),
+		"nbf":            now.Unix(),
+		"exp":            now.Add(p.RefreshTTL).Unix(),
+		"type":           "refresh",
+		"user_id":        u.ID,
+		"email":          u.Email,
+		"email_verified": u.EmailVerifiedAt != nil,
+		"role":           string(u.Role),
 	}
 
 	t := jwt.NewWithClaims(jwt.SigningMethodHS256, claims)

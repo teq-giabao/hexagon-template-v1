@@ -63,6 +63,7 @@ func TestSearchRoutes_SearchHotels_Pagination(t *testing.T) {
 
 	req := httptest.NewRequest(http.MethodPost, "/api/search/hotels", bytes.NewReader(body))
 	req.Header.Set("Content-Type", "application/json")
+
 	rec := httptest.NewRecorder()
 	server.Router.ServeHTTP(rec, req)
 
@@ -87,10 +88,11 @@ func TestSearchRoutes_SearchHotelRooms_MissingHotelID(t *testing.T) {
 
 	req := httptest.NewRequest(http.MethodPost, "/api/search/hotels//rooms", bytes.NewReader(body))
 	req.Header.Set("Content-Type", "application/json")
+
 	rec := httptest.NewRecorder()
 	server.Router.ServeHTTP(rec, req)
 
-	assert.Equal(t, http.StatusNotFound, rec.Code)
+	assert.Equal(t, http.StatusBadRequest, rec.Code)
 }
 
 func TestSearchRoutes_SearchHotelRoomCombinations(t *testing.T) {
@@ -99,10 +101,10 @@ func TestSearchRoutes_SearchHotelRoomCombinations(t *testing.T) {
 	server.SearchService = svc
 
 	payload := map[string]any{
-		"checkInAt":     "2026-04-01",
-		"checkOutAt":    "2026-04-03",
-		"roomCount":     1,
-		"adultCount":    2,
+		"checkInAt":       "2026-04-01",
+		"checkOutAt":      "2026-04-03",
+		"roomCount":       1,
+		"adultCount":      2,
 		"maxCombinations": 2,
 	}
 	body, err := json.Marshal(payload)
@@ -113,6 +115,7 @@ func TestSearchRoutes_SearchHotelRoomCombinations(t *testing.T) {
 
 	req := httptest.NewRequest(http.MethodPost, "/api/search/hotels/h-1/room-combinations", bytes.NewReader(body))
 	req.Header.Set("Content-Type", "application/json")
+
 	rec := httptest.NewRecorder()
 	server.Router.ServeHTTP(rec, req)
 

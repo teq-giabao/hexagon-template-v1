@@ -4,7 +4,8 @@ import (
 	"log/slog"
 	"strings"
 	"time"
-	"unicode"
+
+	"hexagon/user"
 
 	"github.com/go-playground/validator/v10"
 )
@@ -52,36 +53,12 @@ func validatePassword(fl validator.FieldLevel) bool {
 		return false
 	}
 
-	value = strings.TrimSpace(value)
-	if len(value) < 9 || len(value) > 72 {
-		slog.Error("validation failed", "tag", "password", "reason", "invalid length")
+	if err := user.ValidatePassword(value); err != nil {
+		slog.Error("validation failed", "tag", "password", "reason", err.Error())
 		return false
 	}
 
-	hasUpper := false
-	hasLower := false
-	hasNumber := false
-	hasSpecial := false
-
-	for _, r := range value {
-		switch {
-		case unicode.IsUpper(r):
-			hasUpper = true
-		case unicode.IsLower(r):
-			hasLower = true
-		case unicode.IsNumber(r):
-			hasNumber = true
-		case unicode.IsPunct(r) || unicode.IsSymbol(r):
-			hasSpecial = true
-		}
-	}
-
-	valid := hasUpper && hasLower && hasNumber && hasSpecial
-	if !valid {
-		slog.Error("validation failed", "tag", "password", "reason", "missing required character classes")
-	}
-
-	return valid
+	return true
 }
 
 func validateDateNotPast(fl validator.FieldLevel) bool {

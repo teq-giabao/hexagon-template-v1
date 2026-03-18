@@ -4,11 +4,13 @@ import (
 	"crypto/rand"
 	"encoding/base64"
 	"errors"
+	"fmt"
 	"net/http"
 	"strings"
 	"time"
 
 	"hexagon/auth"
+	"hexagon/errs"
 	"hexagon/user"
 
 	"github.com/golang-jwt/jwt/v5"
@@ -78,6 +80,10 @@ func (s *Server) handleRegister(c echo.Context) error {
 
 		if errors.Is(err, user.ErrEmailAlreadyExists) {
 			return s.respondConflict(c, "email already exists", err.Error())
+		}
+
+		if errs.ErrorCode(err) == errs.EINVALID {
+			return s.respondBadRequest(c, errs.ErrorMessage(err), err.Error())
 		}
 
 		return s.respondInternalServerError(c, "internal error", err.Error())
@@ -355,19 +361,33 @@ func (s *Server) handleMe(c echo.Context) error {
 		return s.respondUnauthorized(c, "invalid access token", "invalid jwt claims")
 	}
 
-	email, _ := claims["email"].(string)
-	email = strings.TrimSpace(email)
-
-	if email == "" {
-		return s.respondUnauthorized(c, "invalid access token", "missing email claim")
+	userID, ok := userIDFromClaims(claims)
+	if !ok {
+		return s.respondUnauthorized(c, "invalid access token", "missing user id claim")
 	}
 
-	u, err := s.UserService.GetUserByEmail(c.Request().Context(), email)
+	u, err := s.UserService.GetUserByID(c.Request().Context(), userID)
 	if err != nil {
 		return s.respondInternalServerError(c, "internal error", err.Error())
 	}
 
 	return s.respondOK(c, toUserResponse(u))
+}
+
+func userIDFromClaims(claims jwt.MapClaims) (string, bool) {
+	if sub, ok := claims["sub"].(string); ok && strings.TrimSpace(sub) != "" {
+		return strings.TrimSpace(sub), true
+	}
+
+	if uid, ok := claims["user_id"].(string); ok && strings.TrimSpace(uid) != "" {
+		return strings.TrimSpace(uid), true
+	}
+
+	if uid, ok := claims["user_id"].(float64); ok && uid != 0 {
+		return strings.TrimSpace(fmt.Sprintf("%.0f", uid)), true
+	}
+
+	return "", false
 }
 
 // handleGoogleLogin godoc

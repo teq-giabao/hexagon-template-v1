@@ -212,7 +212,9 @@ func allocateRandomPort(t *testing.T) int {
 	t.Helper()
 
 	listener, err := net.Listen("tcp", "127.0.0.1:0")
-	require.NoError(t, err)
+	if err != nil {
+		t.Skipf("skipping: cannot bind to local port (%v)", err)
+	}
 
 	port := listener.Addr().(*net.TCPAddr).Port
 	listener.Close()

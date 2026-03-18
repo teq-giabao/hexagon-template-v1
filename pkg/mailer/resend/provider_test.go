@@ -63,6 +63,7 @@ func (c *captureTransport) RoundTrip(req *http.Request) (*http.Response, error) 
 	c.handler(&payload)
 
 	respBody := io.NopCloser(bytes.NewReader([]byte(`{"id":"email_123"}`)))
+
 	return &http.Response{
 		StatusCode: http.StatusOK,
 		Body:       respBody,

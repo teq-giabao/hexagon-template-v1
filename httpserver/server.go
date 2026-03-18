@@ -75,7 +75,7 @@ func Default(cfg *config.Config) *Server {
 	s.RegisterPrivateRoutes(private)
 	s.RegisterHealthRoutes()
 	s.RegisterSwaggerRoutes()
-	s.RegisterUserRoutes()
+	s.RegisterUserRoutes(private)
 	s.RegisterAuthRoutes()
 	s.RegisterHotelRoutes()
 	s.RegisterRoomRoutes()

@@ -1,8 +1,6 @@
 package httpserver
 
 import (
-	"strings"
-
 	"hexagon/auth"
 
 	"github.com/golang-jwt/jwt/v5"
@@ -22,23 +20,40 @@ func (s *Server) requireVerifiedEmail() echo.MiddlewareFunc {
 				return s.respondUnauthorized(c, "invalid access token", "invalid jwt claims")
 			}
 
-			email, _ := claims["email"].(string)
-			email = strings.TrimSpace(email)
-
-			if email == "" {
-				return s.respondUnauthorized(c, "invalid access token", "missing email claim")
+			verified, ok := claimBool(claims["email_verified"])
+			if !ok {
+				return s.respondUnauthorized(c, "invalid access token", "missing email_verified claim")
 			}
 
-			u, err := s.UserService.GetUserByEmail(c.Request().Context(), email)
-			if err != nil {
-				return s.respondUnauthorized(c, "invalid access token", "user not found")
-			}
-
-			if u.EmailVerifiedAt == nil {
+			if !verified {
 				return s.respondUnauthorized(c, "email is not verified", auth.ErrEmailNotVerified.Error())
 			}
 
 			return next(c)
 		}
+	}
+}
+
+func claimBool(value any) (bool, bool) {
+	switch v := value.(type) {
+	case bool:
+		return v, true
+	case string:
+		if v == "" {
+			return false, false
+		}
+
+		switch v {
+		case "true", "1", "yes":
+			return true, true
+		case "false", "0", "no":
+			return false, true
+		default:
+			return false, false
+		}
+	case float64:
+		return v != 0, true
+	default:
+		return false, false
 	}
 }

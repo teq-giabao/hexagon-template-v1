@@ -43,7 +43,12 @@ func (r *RefreshTokenRepository) Save(ctx context.Context, token auth.RefreshTok
 		RevokedAt: token.RevokedAt,
 	}
 
-	return r.db.WithContext(ctx).Create(&model).Error
+	db := r.db
+	if tx := txFromContext(ctx); tx != nil {
+		db = tx
+	}
+
+	return db.WithContext(ctx).Create(&model).Error
 }
 
 func (r *RefreshTokenRepository) GetActiveByHash(ctx context.Context, tokenHash string) (auth.RefreshToken, error) {

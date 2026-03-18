@@ -32,11 +32,8 @@ var (
 	ErrInvalidCounter                 = errs.Errorf(errs.EINVALID, "user: invalid counter")
 	ErrInvalidLockState               = errs.Errorf(errs.EINVALID, "user: invalid lock state")
 	ErrInvalidFailedLoginState        = errs.Errorf(errs.EINVALID, "user: invalid failed login state")
-	ErrInvalidName                    = ErrNameRequired
-	ErrInvalidEmail                   = ErrEmailRequired
-	ErrInvalidPassword                = ErrPasswordRequired
 	maxNameLength                     = 100
-	minPasswordLengthGreaterThanEight = 9
+	minPasswordLength                 = 9
 	maxPasswordLength                 = 72
 	phoneRegex                        = regexp.MustCompile(`^\d{10}$`)
 )
@@ -109,6 +106,10 @@ func (u User) Validate() error {
 	}
 
 	return nil
+}
+
+func ValidatePassword(password string) error {
+	return validatePassword(strings.TrimSpace(password))
 }
 
 func (u User) validateRoleAndStatus() error {
@@ -228,7 +229,7 @@ func validatePassword(password string) error {
 		return ErrPasswordRequired
 	}
 
-	if len(password) < minPasswordLengthGreaterThanEight {
+	if len(password) < minPasswordLength {
 		return ErrPasswordTooShort
 	}
 

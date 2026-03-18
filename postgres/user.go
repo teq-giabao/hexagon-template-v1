@@ -93,7 +93,7 @@ func (r *UserRepository) CreateUser(ctx context.Context, u user.User) error {
 
 // CreateUserTx creates a new user and runs fn inside the same transaction.
 // If fn returns an error, the transaction is rolled back.
-func (r *UserRepository) CreateUserTx(ctx context.Context, u user.User, fn func(created user.User) error) (user.User, error) {
+func (r *UserRepository) CreateUserTx(ctx context.Context, u user.User, fn func(ctx context.Context, created user.User) error) (user.User, error) {
 	var created user.User
 
 	err := r.db.WithContext(ctx).Transaction(func(tx *gorm.DB) error {
@@ -107,8 +107,10 @@ func (r *UserRepository) CreateUserTx(ctx context.Context, u user.User, fn func(
 		}
 
 		created = toDomainUser(model)
+
 		if fn != nil {
-			if err := fn(created); err != nil {
+			txCtx := withTx(ctx, tx)
+			if err := fn(txCtx, created); err != nil {
 				return err
 			}
 		}

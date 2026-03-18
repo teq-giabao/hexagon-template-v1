@@ -66,6 +66,10 @@ func TestUserRoutes_ListUsers_HidesPasswordHash(t *testing.T) {
 	svc.On("ListUsers", mock.Anything).Return(users, nil).Once()
 
 	req := httptest.NewRequest(http.MethodGet, "/api/users", nil)
+	token, err := signTestToken()
+	require.NoError(t, err)
+	req.Header.Set("Authorization", "Bearer "+token)
+
 	rec := httptest.NewRecorder()
 	server.Router.ServeHTTP(rec, req)
 
@@ -86,6 +90,10 @@ func TestUserRoutes_GetByID(t *testing.T) {
 	svc.On("GetUserByID", mock.Anything, "u-1").Return(u, nil).Once()
 
 	req := httptest.NewRequest(http.MethodGet, "/api/users/u-1", nil)
+	token, err := signTestToken()
+	require.NoError(t, err)
+	req.Header.Set("Authorization", "Bearer "+token)
+
 	rec := httptest.NewRecorder()
 	server.Router.ServeHTTP(rec, req)
 
@@ -105,6 +113,10 @@ func TestUserRoutes_GetByEmail(t *testing.T) {
 	svc.On("GetUserByEmail", mock.Anything, "john@mail.com").Return(u, nil).Once()
 
 	req := httptest.NewRequest(http.MethodGet, "/api/users/by-email?email=john@mail.com", nil)
+	token, err := signTestToken()
+	require.NoError(t, err)
+	req.Header.Set("Authorization", "Bearer "+token)
+
 	rec := httptest.NewRecorder()
 	server.Router.ServeHTTP(rec, req)
 
@@ -131,6 +143,10 @@ func TestUserRoutes_UpdateProfile(t *testing.T) {
 
 	req := httptest.NewRequest(http.MethodPatch, "/api/users/u-1/profile", bytes.NewReader(body))
 	req.Header.Set("Content-Type", "application/json")
+
+	token, err := signTestToken()
+	require.NoError(t, err)
+	req.Header.Set("Authorization", "Bearer "+token)
 
 	rec := httptest.NewRecorder()
 	server.Router.ServeHTTP(rec, req)
@@ -159,6 +175,10 @@ func TestUserRoutes_ChangePassword(t *testing.T) {
 	req := httptest.NewRequest(http.MethodPatch, "/api/users/u-1/password", bytes.NewReader(body))
 	req.Header.Set("Content-Type", "application/json")
 
+	token, err := signTestToken()
+	require.NoError(t, err)
+	req.Header.Set("Authorization", "Bearer "+token)
+
 	rec := httptest.NewRecorder()
 	server.Router.ServeHTTP(rec, req)
 
@@ -175,6 +195,10 @@ func TestUserRoutes_Deactivate(t *testing.T) {
 	svc.On("DeactivateUser", mock.Anything, "u-1").Return(nil).Once()
 
 	req := httptest.NewRequest(http.MethodPatch, "/api/users/u-1/deactivate", nil)
+	token, err := signTestToken()
+	require.NoError(t, err)
+	req.Header.Set("Authorization", "Bearer "+token)
+
 	rec := httptest.NewRecorder()
 	server.Router.ServeHTTP(rec, req)
 
