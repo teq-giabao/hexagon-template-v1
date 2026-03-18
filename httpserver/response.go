@@ -7,6 +7,7 @@ import (
 	"strconv"
 	"time"
 
+	"hexagon/booking"
 	"hexagon/hotel"
 	"hexagon/room"
 	"hexagon/search"
@@ -477,6 +478,35 @@ type SearchHotelRoomCombinationItemResponse struct {
 	Subtotal  float64 `json:"subtotal"`
 }
 
+type BookingResponse struct {
+	ID              string     `json:"id"`
+	UserID          string     `json:"userId"`
+	HotelID         string     `json:"hotelId"`
+	RoomID          string     `json:"roomId"`
+	CheckInAt       time.Time  `json:"checkInAt"`
+	CheckOutAt      time.Time  `json:"checkOutAt"`
+	Nights          int        `json:"nights"`
+	RoomCount       int        `json:"roomCount"`
+	GuestCount      int        `json:"guestCount"`
+	NightlyPrice    float64    `json:"nightlyPrice"`
+	TotalPrice      float64    `json:"totalPrice"`
+	Status          string     `json:"status"`
+	PaymentOption   string     `json:"paymentOption,omitempty"`
+	PaymentStatus   string     `json:"paymentStatus"`
+	HoldExpiresAt   *time.Time `json:"holdExpiresAt,omitempty"`
+	PaymentDeadline *time.Time `json:"paymentDeadlineAt,omitempty"`
+	CancelledAt     *time.Time `json:"cancelledAt,omitempty"`
+	CancellationFee float64    `json:"cancellationFee"`
+	RefundAmount    float64    `json:"refundAmount"`
+	CreatedAt       time.Time  `json:"createdAt"`
+	UpdatedAt       time.Time  `json:"updatedAt"`
+}
+
+type BookingCheckoutResponse struct {
+	Booking        BookingResponse `json:"booking"`
+	PaymentOptions []string        `json:"paymentOptions"`
+}
+
 func toSearchHotelRoomCombinationsResponse(in search.HotelRoomCombinationsResult) SearchHotelRoomCombinationsResponse {
 	combinations := make([]SearchHotelRoomCombinationResponse, len(in.Combinations))
 
@@ -507,5 +537,43 @@ func toSearchHotelRoomCombinationsResponse(in search.HotelRoomCombinationsResult
 		HotelID:            in.HotelID,
 		RequestedRoomCount: in.RequestedRoomCount,
 		Combinations:       combinations,
+	}
+}
+
+func toBookingResponse(b booking.Booking) BookingResponse {
+	return BookingResponse{
+		ID:              b.ID,
+		UserID:          b.UserID,
+		HotelID:         b.HotelID,
+		RoomID:          b.RoomID,
+		CheckInAt:       b.CheckInDate,
+		CheckOutAt:      b.CheckOutDate,
+		Nights:          b.Nights,
+		RoomCount:       b.RoomCount,
+		GuestCount:      b.GuestCount,
+		NightlyPrice:    b.NightlyPrice,
+		TotalPrice:      b.TotalPrice,
+		Status:          string(b.Status),
+		PaymentOption:   string(b.PaymentOption),
+		PaymentStatus:   string(b.PaymentStatus),
+		HoldExpiresAt:   b.HoldExpiresAt,
+		PaymentDeadline: b.PaymentDeadline,
+		CancelledAt:     b.CancelledAt,
+		CancellationFee: b.CancellationFee,
+		RefundAmount:    b.RefundAmount,
+		CreatedAt:       b.CreatedAt,
+		UpdatedAt:       b.UpdatedAt,
+	}
+}
+
+func toBookingCheckoutResponse(c booking.Checkout) BookingCheckoutResponse {
+	options := make([]string, len(c.PaymentOptions))
+	for i := range c.PaymentOptions {
+		options[i] = string(c.PaymentOptions[i])
+	}
+
+	return BookingCheckoutResponse{
+		Booking:        toBookingResponse(c.Booking),
+		PaymentOptions: options,
 	}
 }

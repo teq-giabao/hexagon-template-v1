@@ -310,3 +310,17 @@ func (r SearchHotelRoomCombinationsRequest) ToCriteria(checkInAt, checkOutAt tim
 		AmenityIDs:   r.AmenityIDs,
 	}
 }
+
+type CreateBookingRequest struct {
+	RoomID     string `json:"roomId" validate:"required,notblank"`
+	CheckInAt  string `json:"checkInAt" validate:"required,notblank,datetime=2006-01-02,date_not_past,date_within_booking_window"`
+	CheckOutAt string `json:"checkOutAt" validate:"required,notblank,datetime=2006-01-02,date_within_booking_window,checkout_after_checkin"`
+	RoomCount  int    `json:"roomCount" validate:"required,gt=0"`
+	GuestCount int    `json:"guestCount" validate:"required,gt=0"`
+}
+
+type SelectBookingPaymentOptionRequest struct {
+	PaymentOption string `json:"paymentOption" validate:"required,notblank,oneof=immediate pay_at_hotel deferred"`
+}
+
+type CancelBookingRequest struct{}

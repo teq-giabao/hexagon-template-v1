@@ -553,6 +553,240 @@ const docTemplate = `{
                 }
             }
         },
+        "/api/bookings": {
+            "post": {
+                "description": "Create a booking, hold inventory, and return available payment options for the hotel.",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "bookings"
+                ],
+                "summary": "Create Booking",
+                "parameters": [
+                    {
+                        "description": "Booking payload",
+                        "name": "payload",
+                        "in": "body",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/definitions/httpserver.CreateBookingRequest"
+                        }
+                    }
+                ],
+                "responses": {
+                    "201": {
+                        "description": "Created",
+                        "schema": {
+                            "$ref": "#/definitions/httpserver.APISuccessResponse"
+                        }
+                    },
+                    "400": {
+                        "description": "Bad Request",
+                        "schema": {
+                            "$ref": "#/definitions/httpserver.APIErrorResponse"
+                        }
+                    },
+                    "409": {
+                        "description": "Conflict",
+                        "schema": {
+                            "$ref": "#/definitions/httpserver.APIErrorResponse"
+                        }
+                    }
+                }
+            }
+        },
+        "/api/bookings/{booking_id}": {
+            "get": {
+                "description": "Get booking details.",
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "bookings"
+                ],
+                "summary": "Get Booking By ID",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "Booking ID",
+                        "name": "booking_id",
+                        "in": "path",
+                        "required": true
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "$ref": "#/definitions/httpserver.APISuccessResponse"
+                        }
+                    },
+                    "400": {
+                        "description": "Bad Request",
+                        "schema": {
+                            "$ref": "#/definitions/httpserver.APIErrorResponse"
+                        }
+                    },
+                    "404": {
+                        "description": "Not Found",
+                        "schema": {
+                            "$ref": "#/definitions/httpserver.APIErrorResponse"
+                        }
+                    }
+                }
+            }
+        },
+        "/api/bookings/{booking_id}/cancel": {
+            "post": {
+                "description": "Cancel booking if status allows; release inventory and optionally calculate refund.",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "bookings"
+                ],
+                "summary": "Cancel Booking",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "Booking ID",
+                        "name": "booking_id",
+                        "in": "path",
+                        "required": true
+                    },
+                    {
+                        "description": "Cancellation data",
+                        "name": "payload",
+                        "in": "body",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/definitions/httpserver.CancelBookingRequest"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "$ref": "#/definitions/httpserver.APISuccessResponse"
+                        }
+                    },
+                    "400": {
+                        "description": "Bad Request",
+                        "schema": {
+                            "$ref": "#/definitions/httpserver.APIErrorResponse"
+                        }
+                    },
+                    "409": {
+                        "description": "Conflict",
+                        "schema": {
+                            "$ref": "#/definitions/httpserver.APIErrorResponse"
+                        }
+                    }
+                }
+            }
+        },
+        "/api/bookings/{booking_id}/confirm-payment": {
+            "post": {
+                "description": "Mark booking payment as successful and confirm the booking.",
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "bookings"
+                ],
+                "summary": "Confirm Booking Payment",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "Booking ID",
+                        "name": "booking_id",
+                        "in": "path",
+                        "required": true
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "$ref": "#/definitions/httpserver.APISuccessResponse"
+                        }
+                    },
+                    "400": {
+                        "description": "Bad Request",
+                        "schema": {
+                            "$ref": "#/definitions/httpserver.APIErrorResponse"
+                        }
+                    },
+                    "409": {
+                        "description": "Conflict",
+                        "schema": {
+                            "$ref": "#/definitions/httpserver.APIErrorResponse"
+                        }
+                    }
+                }
+            }
+        },
+        "/api/bookings/{booking_id}/payment-option": {
+            "post": {
+                "description": "Select payment option for a pending booking.",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "bookings"
+                ],
+                "summary": "Select Booking Payment Option",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "Booking ID",
+                        "name": "booking_id",
+                        "in": "path",
+                        "required": true
+                    },
+                    {
+                        "description": "Payment option",
+                        "name": "payload",
+                        "in": "body",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/definitions/httpserver.SelectBookingPaymentOptionRequest"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "$ref": "#/definitions/httpserver.APISuccessResponse"
+                        }
+                    },
+                    "400": {
+                        "description": "Bad Request",
+                        "schema": {
+                            "$ref": "#/definitions/httpserver.APIErrorResponse"
+                        }
+                    },
+                    "409": {
+                        "description": "Conflict",
+                        "schema": {
+                            "$ref": "#/definitions/httpserver.APIErrorResponse"
+                        }
+                    }
+                }
+            }
+        },
         "/api/hotels": {
             "get": {
                 "description": "Get all hotels",
@@ -1623,6 +1857,15 @@ const docTemplate = `{
                 }
             }
         },
+        "httpserver.CancelBookingRequest": {
+            "type": "object",
+            "properties": {
+                "cancellationFee": {
+                    "type": "number",
+                    "minimum": 0
+                }
+            }
+        },
         "httpserver.ChangePasswordRequest": {
             "type": "object",
             "required": [
@@ -1635,6 +1878,33 @@ const docTemplate = `{
                     "maxLength": 72
                 },
                 "newPassword": {
+                    "type": "string"
+                }
+            }
+        },
+        "httpserver.CreateBookingRequest": {
+            "type": "object",
+            "required": [
+                "checkInAt",
+                "checkOutAt",
+                "guestCount",
+                "roomCount",
+                "roomId"
+            ],
+            "properties": {
+                "checkInAt": {
+                    "type": "string"
+                },
+                "checkOutAt": {
+                    "type": "string"
+                },
+                "guestCount": {
+                    "type": "integer"
+                },
+                "roomCount": {
+                    "type": "integer"
+                },
+                "roomId": {
                     "type": "string"
                 }
             }
@@ -1949,6 +2219,22 @@ const docTemplate = `{
                 "roomCount": {
                     "type": "integer",
                     "example": 2
+                }
+            }
+        },
+        "httpserver.SelectBookingPaymentOptionRequest": {
+            "type": "object",
+            "required": [
+                "paymentOption"
+            ],
+            "properties": {
+                "paymentOption": {
+                    "type": "string",
+                    "enum": [
+                        "immediate",
+                        "pay_at_hotel",
+                        "deferred"
+                    ]
                 }
             }
         },

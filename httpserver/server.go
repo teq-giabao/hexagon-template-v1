@@ -6,6 +6,7 @@ import (
 	"net/http"
 
 	"hexagon/auth"
+	"hexagon/booking"
 	"hexagon/errs"
 	"hexagon/hotel"
 	"hexagon/pkg/config"
@@ -37,6 +38,8 @@ type Server struct {
 	HotelService hotel.Service
 
 	RoomService room.Service
+
+	BookingService booking.Service
 
 	SearchService search.Service
 
@@ -80,6 +83,7 @@ func Default(cfg *config.Config) *Server {
 	s.RegisterHotelRoutes()
 	s.RegisterRoomRoutes()
 	s.RegisterSearchRoutes()
+	s.RegisterBookingRoutes(private)
 
 	return &s
 }

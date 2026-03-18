@@ -93,6 +93,7 @@ func canAllocateRequestedRooms(candidates []RoomCandidate, requests []guestReque
 	}
 
 	var dfs func(pos int) bool
+
 	dfs = func(pos int) bool {
 		if pos == len(order) {
 			return true

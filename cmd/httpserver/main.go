@@ -18,6 +18,7 @@ import (
 	"time"
 
 	"hexagon/auth"
+	"hexagon/booking"
 	"hexagon/hotel"
 	"hexagon/httpserver"
 	"hexagon/pkg/config"
@@ -77,6 +78,7 @@ func main() {
 	userRepo := postgres.NewUserRepository(db)
 	hotelRepo := postgres.NewHotelRepository(db)
 	roomRepo := postgres.NewRoomRepository(db)
+	bookingRepo := postgres.NewBookingRepository(db)
 	searchRepo := postgres.NewSearchRepository(db)
 	refreshTokenRepo := postgres.NewRefreshTokenRepository(db)
 	userService := user.NewUsecaseWithSession(
@@ -86,6 +88,7 @@ func main() {
 	)
 	hotelService := hotel.NewUsecase(hotelRepo)
 	roomService := room.NewUsecase(roomRepo)
+	bookingService := booking.NewUsecase(bookingRepo)
 	searchService := search.NewUsecase(searchRepo)
 
 	googleProvider, err := oauthgoogle.NewProvider(
@@ -121,6 +124,7 @@ func main() {
 	server.AuthService = authService
 	server.HotelService = hotelService
 	server.RoomService = roomService
+	server.BookingService = bookingService
 	server.SearchService = searchService
 	server.UploadService = createUploadService(cfg)
 	server.Addr = fmt.Sprintf(":%d", cfg.Port)
