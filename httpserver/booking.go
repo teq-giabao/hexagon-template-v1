@@ -4,15 +4,16 @@ import (
 	"hexagon/booking"
 	"hexagon/hotel"
 
+	"github.com/golang-jwt/jwt/v5"
 	"github.com/labstack/echo/v4"
 )
 
-func (s *Server) RegisterBookingRoutes() {
-	s.Router.POST("/api/bookings", s.handleCreateBooking)
-	s.Router.GET("/api/bookings/:booking_id", s.handleGetBookingByID)
-	s.Router.POST("/api/bookings/:booking_id/payment-option", s.handleSelectBookingPaymentOption)
-	s.Router.POST("/api/bookings/:booking_id/confirm-payment", s.handleConfirmBookingPayment)
-	s.Router.POST("/api/bookings/:booking_id/cancel", s.handleCancelBooking)
+func (s *Server) RegisterBookingRoutes(g *echo.Group) {
+	g.POST("/bookings", s.handleCreateBooking)
+	g.GET("/bookings/:booking_id", s.handleGetBookingByID)
+	g.POST("/bookings/:booking_id/payment-option", s.handleSelectBookingPaymentOption)
+	g.POST("/bookings/:booking_id/confirm-payment", s.handleConfirmBookingPayment)
+	g.POST("/bookings/:booking_id/cancel", s.handleCancelBooking)
 }
 
 // handleCreateBooking godoc
@@ -36,6 +37,21 @@ func (s *Server) handleCreateBooking(c echo.Context) error {
 		return s.respondBadRequest(c, "invalid request body", err.Error())
 	}
 
+	token, ok := c.Get("user").(*jwt.Token)
+	if !ok || token == nil {
+		return s.respondUnauthorized(c, "invalid access token", "missing jwt context")
+	}
+
+	claims, ok := token.Claims.(jwt.MapClaims)
+	if !ok {
+		return s.respondUnauthorized(c, "invalid access token", "invalid jwt claims")
+	}
+
+	userID, ok := userIDFromClaims(claims)
+	if !ok {
+		return s.respondUnauthorized(c, "invalid access token", "missing user id claim")
+	}
+
 	checkIn, err := isoDate(req.CheckInAt)
 	if err != nil {
 		return s.respondBadRequest(c, "invalid check-in date", err.Error())
@@ -47,6 +63,7 @@ func (s *Server) handleCreateBooking(c echo.Context) error {
 	}
 
 	checkout, err := s.BookingService.CreateBooking(c.Request().Context(), booking.CreateRequest{
+		UserID:       userID,
 		RoomID:       req.RoomID,
 		CheckInDate:  checkIn,
 		CheckOutDate: checkOut,
@@ -165,16 +182,7 @@ func (s *Server) handleCancelBooking(c echo.Context) error {
 		return s.respondBadRequest(c, "invalid booking id", "booking_id is required")
 	}
 
-	var req CancelBookingRequest
-	if err := c.Bind(&req); err != nil {
-		return s.respondBadRequest(c, "invalid request body", err.Error())
-	}
-
-	if err := c.Validate(&req); err != nil {
-		return s.respondBadRequest(c, "invalid request body", err.Error())
-	}
-
-	updated, err := s.BookingService.CancelBooking(c.Request().Context(), bookingID, req.CancellationFee)
+	updated, err := s.BookingService.CancelBooking(c.Request().Context(), bookingID)
 	if err != nil {
 		return err
 	}

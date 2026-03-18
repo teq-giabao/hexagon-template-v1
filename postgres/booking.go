@@ -14,6 +14,7 @@ import (
 
 type BookingModel struct {
 	ID              string     `gorm:"type:uuid;default:gen_random_uuid();primaryKey"`
+	UserID          string     `gorm:"type:uuid;not null;index"`
 	HotelID         string     `gorm:"type:uuid;not null;index"`
 	RoomID          string     `gorm:"type:uuid;not null;index"`
 	CheckInDate     time.Time  `gorm:"type:date;not null"`
@@ -119,6 +120,10 @@ func (r *BookingRepository) SetPaymentOption(ctx context.Context, id string, opt
 		}
 
 		if err := ensurePendingNotExpired(tx, model, moment); err != nil {
+			return err
+		}
+
+		if err := ensureHotelSupportsPaymentOption(tx, model.HotelID, option); err != nil {
 			return err
 		}
 
@@ -339,6 +344,7 @@ func buildPendingBookingModel(room RoomModel, req booking.CreateRequest, nights 
 	total := nightly * float64(nights) * float64(req.RoomCount)
 
 	return BookingModel{
+		UserID:        req.UserID,
 		HotelID:       room.HotelID,
 		RoomID:        room.ID,
 		CheckInDate:   req.CheckInDate,
@@ -454,6 +460,21 @@ func releaseInventoryForCancel(tx *gorm.DB, model BookingModel, now time.Time) e
 	return nil
 }
 
+func ensureHotelSupportsPaymentOption(tx *gorm.DB, hotelID string, option hotel.PaymentOption) error {
+	var count int64
+	if err := tx.Table("hotel_payment_options").
+		Where("hotel_id = ? AND payment_option = ? AND enabled = TRUE", hotelID, string(option)).
+		Count(&count).Error; err != nil {
+		return err
+	}
+
+	if count == 0 {
+		return booking.ErrPaymentOptionInvalid
+	}
+
+	return nil
+}
+
 func enabledPaymentOptionsWithDB(db *gorm.DB, hotelID string) ([]hotel.PaymentOption, error) {
 	if hotelID == "" {
 		return nil, nil
@@ -482,6 +503,7 @@ func enabledPaymentOptionsWithDB(db *gorm.DB, hotelID string) ([]hotel.PaymentOp
 func toDomainBooking(model BookingModel) booking.Booking {
 	return booking.Booking{
 		ID:              model.ID,
+		UserID:          model.UserID,
 		HotelID:         model.HotelID,
 		RoomID:          model.RoomID,
 		CheckInDate:     model.CheckInDate,

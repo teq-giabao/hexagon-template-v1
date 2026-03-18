@@ -12,7 +12,7 @@ Backend API cho nền tảng đặt phòng khách sạn. Cho phép:
 - Admin quản lý khách sạn, phòng, tồn kho
 - Người dùng đăng ký, đăng nhập, quản lý tài khoản
 
-**Trạng thái hiện tại:** Hệ thống đang ở giai đoạn nền tảng. Chức năng đặt phòng thực tế (tạo booking, thanh toán) chưa được implement — luồng search đã hoàn chỉnh đến bước user chọn tổ hợp phòng.
+**Trạng thái hiện tại:** Hệ thống đã implement đầy đủ luồng đặt phòng — từ tìm kiếm, tạo booking, hold phòng, chọn phương thức thanh toán, đến hủy và tự động expire.
 
 ---
 
@@ -43,6 +43,7 @@ hexagon-template/
 ├── hotel/         Nghiệp vụ khách sạn
 ├── room/          Nghiệp vụ phòng + tồn kho
 ├── search/        Nghiệp vụ tìm kiếm + phân bổ phòng
+├── booking/       Nghiệp vụ đặt phòng, hold, thanh toán, hủy
 ├── upload/        Nghiệp vụ upload ảnh
 │
 ├── httpserver/    HTTP handlers (nhận request, trả response)

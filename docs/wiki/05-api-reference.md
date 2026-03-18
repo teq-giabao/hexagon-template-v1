@@ -13,7 +13,7 @@
 | **Public** | Không cần token                                                        |
 | **JWT**    | Cần header `Authorization: Bearer <access_token>` và email đã xác thực |
 
-> **Lưu ý kiến trúc hiện tại:** Hầu hết API đang ở dạng Public (chưa có middleware xác thực). Trong production, cần thêm bảo vệ cho các route tạo/sửa dữ liệu (khách sạn, phòng...).
+> **Ghi chú:** Các route CRUD khách sạn và phòng hiện tại chưa yêu cầu JWT (dành cho admin tool). Trong production cần thêm role-based middleware cho admin routes.
 
 ---
 
@@ -46,15 +46,15 @@
 
 ## User
 
-| Method | Path                         | Auth   | Mô tả                       |
-| ------ | ---------------------------- | ------ | --------------------------- |
-| GET    | `/api/users`                 | Public | Danh sách tất cả users      |
-| GET    | `/api/users/:id`             | Public | Chi tiết user theo ID       |
-| GET    | `/api/users/by-email?email=` | Public | Tìm user theo email         |
-| POST   | `/api/users`                 | Public | Tạo user mới                |
-| PATCH  | `/api/users/:id/profile`     | Public | Cập nhật tên, số điện thoại |
-| PATCH  | `/api/users/:id/password`    | Public | Đổi mật khẩu                |
-| PATCH  | `/api/users/:id/deactivate`  | Public | Vô hiệu hóa tài khoản       |
+| Method | Path                         | Auth | Mô tả                       |
+| ------ | ---------------------------- | ---- | --------------------------- |
+| GET    | `/api/users`                 | JWT  | Danh sách tất cả users      |
+| GET    | `/api/users/:id`             | JWT  | Chi tiết user theo ID       |
+| GET    | `/api/users/by-email?email=` | JWT  | Tìm user theo email         |
+| POST   | `/api/users`                 | JWT  | Tạo user mới                |
+| PATCH  | `/api/users/:id/profile`     | JWT  | Cập nhật tên, số điện thoại |
+| PATCH  | `/api/users/:id/password`    | JWT  | Đổi mật khẩu                |
+| PATCH  | `/api/users/:id/deactivate`  | JWT  | Vô hiệu hóa tài khoản       |
 
 ---
 
@@ -86,6 +86,18 @@
 | POST   | `/api/search/hotels`                             | Public | Tìm khách sạn (có phân trang) |
 | POST   | `/api/search/hotels/:hotel_id/rooms`             | Public | Xem phòng available           |
 | POST   | `/api/search/hotels/:hotel_id/room-combinations` | Public | Gợi ý tổ hợp phòng            |
+
+---
+
+## Booking
+
+| Method | Path                                | Auth | Mô tả                           |
+| ------ | ----------------------------------- | ---- | ------------------------------- |
+| POST   | `/api/bookings`                     | JWT  | Tạo booking, hold phòng 10 phút |
+| GET    | `/api/bookings/:id`                 | JWT  | Xem chi tiết booking            |
+| POST   | `/api/bookings/:id/payment-option`  | JWT  | Chọn phương thức thanh toán     |
+| POST   | `/api/bookings/:id/confirm-payment` | JWT  | Xác nhận thanh toán thành công  |
+| POST   | `/api/bookings/:id/cancel`          | JWT  | Hủy booking                     |
 
 ---
 
@@ -221,4 +233,40 @@ POST /api/search/hotels/:hotel_id/room-combinations
   "roomCount": 2,
   "maxCombinations": 5
 }
+```
+
+### Tạo booking
+
+```json
+POST /api/bookings
+Authorization: Bearer <token>
+{
+  "roomId": "uuid-room",
+  "checkInAt": "2026-04-01",
+  "checkOutAt": "2026-04-03",
+  "roomCount": 1,
+  "guestCount": 2
+}
+```
+
+### Chọn phương thức thanh toán
+
+```json
+POST /api/bookings/:id/payment-option
+Authorization: Bearer <token>
+{ "paymentOption": "immediate" }
+```
+
+### Xác nhận thanh toán thành công
+
+```json
+POST /api/bookings/:id/confirm-payment
+Authorization: Bearer <token>
+```
+
+### Hủy booking
+
+```json
+POST /api/bookings/:id/cancel
+Authorization: Bearer <token>
 ```

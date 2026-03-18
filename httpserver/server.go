@@ -83,7 +83,7 @@ func Default(cfg *config.Config) *Server {
 	s.RegisterHotelRoutes()
 	s.RegisterRoomRoutes()
 	s.RegisterSearchRoutes()
-	s.RegisterBookingRoutes()
+	s.RegisterBookingRoutes(private)
 
 	return &s
 }

@@ -480,6 +480,7 @@ type SearchHotelRoomCombinationItemResponse struct {
 
 type BookingResponse struct {
 	ID              string     `json:"id"`
+	UserID          string     `json:"userId"`
 	HotelID         string     `json:"hotelId"`
 	RoomID          string     `json:"roomId"`
 	CheckInAt       time.Time  `json:"checkInAt"`
@@ -542,6 +543,7 @@ func toSearchHotelRoomCombinationsResponse(in search.HotelRoomCombinationsResult
 func toBookingResponse(b booking.Booking) BookingResponse {
 	return BookingResponse{
 		ID:              b.ID,
+		UserID:          b.UserID,
 		HotelID:         b.HotelID,
 		RoomID:          b.RoomID,
 		CheckInAt:       b.CheckInDate,

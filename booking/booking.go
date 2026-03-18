@@ -11,6 +11,7 @@ import (
 var (
 	ErrBookingIDRequired     = errs.Errorf(errs.EINVALID, "booking: id is required")
 	ErrBookingNotFound       = errs.Errorf(errs.ENOTFOUND, "booking: not found")
+	ErrUserIDRequired        = errs.Errorf(errs.EINVALID, "booking: user id is required")
 	ErrRoomIDRequired        = errs.Errorf(errs.EINVALID, "booking: room id is required")
 	ErrRoomNotFound          = errs.Errorf(errs.ENOTFOUND, "booking: room not found")
 	ErrCheckInRequired       = errs.Errorf(errs.EINVALID, "booking: check-in date is required")
@@ -46,6 +47,7 @@ const (
 )
 
 type CreateRequest struct {
+	UserID       string
 	RoomID       string
 	CheckInDate  time.Time
 	CheckOutDate time.Time
@@ -54,6 +56,10 @@ type CreateRequest struct {
 }
 
 func (r CreateRequest) Validate() error {
+	if strings.TrimSpace(r.UserID) == "" {
+		return ErrUserIDRequired
+	}
+
 	if strings.TrimSpace(r.RoomID) == "" {
 		return ErrRoomIDRequired
 	}
@@ -83,6 +89,7 @@ func (r CreateRequest) Validate() error {
 
 type Booking struct {
 	ID              string
+	UserID          string
 	HotelID         string
 	RoomID          string
 	CheckInDate     time.Time

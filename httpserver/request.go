@@ -323,6 +323,4 @@ type SelectBookingPaymentOptionRequest struct {
 	PaymentOption string `json:"paymentOption" validate:"required,notblank,oneof=immediate pay_at_hotel deferred"`
 }
 
-type CancelBookingRequest struct {
-	CancellationFee float64 `json:"cancellationFee" validate:"gte=0"`
-}
+type CancelBookingRequest struct{}

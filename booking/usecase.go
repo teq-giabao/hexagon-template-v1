@@ -22,7 +22,7 @@ type Service interface {
 	GetBookingByID(ctx context.Context, id string) (Booking, error)
 	SelectPaymentOption(ctx context.Context, id string, option hotel.PaymentOption) (Booking, error)
 	MarkPaymentPaid(ctx context.Context, id string) (Booking, error)
-	CancelBooking(ctx context.Context, id string, cancellationFee float64) (Booking, error)
+	CancelBooking(ctx context.Context, id string) (Booking, error)
 	ExpireStaleBookings(ctx context.Context) (int, error)
 }
 
@@ -112,16 +112,12 @@ func (uc *Usecase) MarkPaymentPaid(ctx context.Context, id string) (Booking, err
 	return uc.repo.MarkPaid(ctx, id)
 }
 
-func (uc *Usecase) CancelBooking(ctx context.Context, id string, cancellationFee float64) (Booking, error) {
+func (uc *Usecase) CancelBooking(ctx context.Context, id string) (Booking, error) {
 	if err := ValidateID(id); err != nil {
 		return Booking{}, err
 	}
 
-	if cancellationFee < 0 {
-		return Booking{}, ErrCancellationFee
-	}
-
-	return uc.repo.Cancel(ctx, id, cancellationFee)
+	return uc.repo.Cancel(ctx, id, 0)
 }
 
 func (uc *Usecase) ExpireStaleBookings(ctx context.Context) (int, error) {
